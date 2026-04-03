@@ -57,118 +57,42 @@ config["search"]["filters"]["time_filter"] = st.sidebar.selectbox("Global Date P
 # ── COOKIE WIZARD ──
 st.sidebar.divider()
 st.sidebar.subheader("🗝️ Authentication")
-new_li_at = st.sidebar.text_input("Refresh LI_AT Cookie", value="", type="password", key="li_at_input", help="Paste your new li_at cookie here if vision shows a Sign In page.")
+new_li_at = st.sidebar.text_input("Refresh LI_AT Cookie", value="", type="password", key="li_at_input")
 if st.sidebar.button("Update Login Session"):
     if new_li_at:
-        # Update both local and session state
         config["linkedin"] = config.get("linkedin", {})
         config["linkedin"]["li_at_cookie"] = new_li_at
         save_state()
-        st.sidebar.success("Session Updated! Try 'Test Cloud Eyes' now.")
-    else:
-        st.sidebar.error("Please paste a cookie first.")
+        st.sidebar.success("Session Updated!")
 
 # --- PAGE LOGIC ---
 
 if page == "Search & Filters":
     st.header("Search & Filters Configuration")
-    st.markdown("Control the unified query search constraints.")
-    
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("Job Roles")
-        roles_text = st.text_area("Keywords/Roles (one per line)", "\n".join(config["search"]["roles"]), height=200)
+        roles_text = st.text_area("Keywords/Roles", "\n".join(config["search"]["roles"]), height=200)
         config["search"]["roles"] = [r.strip() for r in roles_text.split("\n") if r.strip()]
-        
     with col2:
         st.subheader("Locations")
-        locations_text = st.text_area("Search Locations (one per line)", "\n".join(config["search"]["locations"]), height=200)
+        locations_text = st.text_area("Search Locations", "\n".join(config["search"]["locations"]), height=200)
         config["search"]["locations"] = [l.strip() for l in locations_text.split("\n") if l.strip()]
-
-    st.subheader("LinkedIn URL Filters")
-    col3, col4, col5 = st.columns(3)
-    
-    with col3:
-        st.write("**Remote Type**")
-        config["search"]["filters"]["remote"] = st.checkbox("Remote", value=config["search"]["filters"]["remote"])
-        config["search"]["filters"]["hybrid"] = st.checkbox("Hybrid", value=config["search"]["filters"]["hybrid"])
-        config["search"]["filters"]["onsite"] = st.checkbox("Onsite", value=config["search"]["filters"]["onsite"])
-        
-    with col4:
-        st.write("**Experience Level**")
-        config["search"]["filters"]["entry_level"] = st.checkbox("Entry level", value=config["search"]["filters"]["entry_level"])
-        config["search"]["filters"]["associate"] = st.checkbox("Associate", value=config["search"]["filters"]["associate"])
-        config["search"]["filters"]["mid_senior"] = st.checkbox("Mid-Senior level", value=config["search"]["filters"]["mid_senior"])
-        
-    with col5:
-        st.write("**Active Time Filter**")
-        st.info(f"Using: {config['search']['filters']['time_filter']} (Select in Sidebar)")
-        
     st.button("Save Changes Forever", on_click=save_state, key="save_search")
-
-elif page == "Limits & Scheduler":
-    st.header("Limits & Scheduler")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("Global Limits")
-        config["limits"]["scrape_limit"] = st.number_input("Max Jobs to Scrape", min_value=1, max_value=2000, value=config["limits"]["scrape_limit"])
-        config["limits"]["email_limit"] = st.number_input("Email Report Limit", min_value=1, max_value=2000, value=config["limits"]["email_limit"])
-    with col2:
-        st.subheader("Scheduler")
-        config["scheduler"]["enabled"] = st.toggle("Enable Daily Scheduler", value=config["scheduler"]["enabled"])
-        times_text = st.text_area("Run Times (HH:MM)", value="\n".join(config["scheduler"].get("run_times", ["07:00"])))
-        config["scheduler"]["run_times"] = [t.strip() for t in times_text.split("\n") if t.strip()]
-    st.button("Save Changes", on_click=save_state, key="save_limits")
-
-elif page == "Blacklists & Priorities":
-    st.header("Blacklists & Priorities")
-    col1, col2 = st.columns(2)
-    with col1:
-        companies_text = st.text_area("Blacklisted Companies", "\n".join(config["blacklist"]["companies"]))
-        config["blacklist"]["companies"] = [c.strip() for c in companies_text.split("\n") if c.strip()]
-    with col2:
-        priority_companies = st.text_area("Priority Companies", "\n".join(config["optional_filters"]["priority_companies"]))
-        config["optional_filters"]["priority_companies"] = [p.strip() for p in priority_companies.split("\n") if p.strip()]
-    st.button("Save Changes", on_click=save_state, key="save_lists")
 
 elif page == "Jobs Database":
     st.header("📂 Jobs Database")
-    st.markdown("View and filter the jobs currently stored in your persistent cloud database.")
     import pandas as pd
     import sqlite3
     db_path = BASE_DIR / "data/jobs.db"
-    if not db_path.exists():
-        st.warning("No database found.")
-    else:
+    if db_path.exists():
         try:
             conn = sqlite3.connect(db_path)
-            # Fetch latest jobs — FIXING THE COLUMN NAME TO scraped_date
             df = pd.read_sql_query("SELECT * FROM jobs ORDER BY scraped_date DESC", conn)
             conn.close()
-            
-            if df.empty:
-                st.info("Database is empty.")
-            else:
-                st.dataframe(df[['title', 'company', 'location', 'ats_score', 'scraped_date', 'job_url']], use_container_width=True)
-        except Exception as e:
-            st.info(f"📊 Database ready, but the Jobs table is currently empty. Run your first pipeline! Error details: {e}")
-
-elif page == "AI Document Optimization":
-    st.header("AI Document Optimization")
-    config["optimization"]["enabled"] = st.toggle("Enable Optimization", value=config["optimization"].get("enabled", False))
-    st.button("Save Changes", on_click=save_state, key="save_opt")
-
-elif page == "Application Assistant":
-    st.header("Application Assistant")
-    config["application_assistant"]["enabled"] = st.toggle("Enable Assistant", value=config["application_assistant"].get("enabled", False))
-    st.button("Save Changes", on_click=save_state, key="save_app_assist")
-
-elif page == "Prompt Management":
-    st.header("Prompt Management")
-    new_prompt = st.text_area("Active Prompt", value=config["prompt"]["active_prompt"], height=400)
-    if st.button("Save Prompt"):
-        config["prompt"]["active_prompt"] = new_prompt
-        save_state()
+            st.dataframe(df[['title', 'company', 'location', 'ats_score', 'scraped_date', 'job_url']], use_column_width=True)
+        except Exception:
+            st.info("📊 Database ready, but the Jobs table is currently empty.")
 
 elif page == "Manual Run Control":
     st.header("🚀 Manual Control & Sync")
@@ -185,40 +109,58 @@ elif page == "Manual Run Control":
             sync_db_to_drive()
             st.success("Backed up!")
     with col_c:
-        if st.button("🧪 Test Cloud Eyes", use_container_width=True):
-            with st.spinner("Taking a 'Selfie' in the Cloud..."):
-                try:
-                    import subprocess, asyncio
-                    subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=False)
-                    from src.scraper.vision import capture_screenshot
-                    from src.storage import sync_screenshots_to_drive
-                    from playwright.async_api import async_playwright
-                    from src.config import CHROME_PROFILE_DIR
-                    
-                    async def run_vision_test():
-                        async with async_playwright() as p:
-                            context = await p.chromium.launch_persistent_context(
-                                user_data_dir=str(CHROME_PROFILE_DIR),
-                                headless=True
-                            )
-                            # Inject cookie for test too
-                            if config and "linkedin" in config and "li_at_cookie" in config["linkedin"]:
-                                await context.add_cookies([{
-                                    "name": "li_at",
-                                    "value": config["linkedin"]["li_at_cookie"],
-                                    "domain": ".www.linkedin.com",
-                                    "path": "/"
-                                }])
-                            page = await context.new_page()
-                            await page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded")
-                            await capture_screenshot(page, "DIAGNOSTIC_SELFIE")
-                            await context.close()
-                    
-                    asyncio.run(run_vision_test())
-                    sync_screenshots_to_drive()
-                    st.success("📸 Selfie uploaded to Drive! Check your 'debug_screenshots' folder.")
-                except Exception as e:
-                    st.error(f"Vision test failed: {e}")
+        sub1, sub2 = st.columns(2)
+        with sub1:
+            if st.button("🧪 Feed Selfie", use_container_width=True):
+                with st.spinner("Taking Feed Selfie..."):
+                    try:
+                        import subprocess, asyncio
+                        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=False)
+                        from src.scraper.vision import capture_screenshot
+                        from src.storage import sync_screenshots_to_drive
+                        from playwright.async_api import async_playwright
+                        from src.config import CHROME_PROFILE_DIR
+                        async def run_vision_test():
+                            async with async_playwright() as p:
+                                context = await p.chromium.launch_persistent_context(user_data_dir=str(CHROME_PROFILE_DIR), headless=True)
+                                if config and "linkedin" in config and "li_at_cookie" in config["linkedin"]:
+                                    await context.add_cookies([{"name": "li_at", "value": config["linkedin"]["li_at_cookie"], "domain": ".www.linkedin.com", "path": "/"}])
+                                page = await context.new_page()
+                                await page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded")
+                                await capture_screenshot(page, "DIAGNOSTIC_FEED_SELFIE")
+                                await context.close()
+                        asyncio.run(run_vision_test())
+                        sync_screenshots_to_drive()
+                        st.success("📸 Check Drive!")
+                    except Exception as e: st.error(f"Failed: {e}")
+        with sub2:
+            if st.button("🧪 Search Selfie", use_container_width=True):
+                with st.spinner("Visiting Search Page..."):
+                    try:
+                        import subprocess, asyncio
+                        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=False)
+                        from src.scraper.vision import capture_screenshot
+                        from src.storage import sync_screenshots_to_drive
+                        from src.scraper.linkedin import build_combined_query, build_li_filters
+                        from playwright.async_api import async_playwright
+                        from src.config import CHROME_PROFILE_DIR
+                        async def run_search_test():
+                            async with async_playwright() as p:
+                                context = await p.chromium.launch_persistent_context(user_data_dir=str(CHROME_PROFILE_DIR), headless=True)
+                                if config and "linkedin" in config and "li_at_cookie" in config["linkedin"]:
+                                    await context.add_cookies([{"name": "li_at", "value": config["linkedin"]["li_at_cookie"], "domain": ".www.linkedin.com", "path": "/"}])
+                                page = await context.new_page()
+                                q = build_combined_query(config["search"]["roles"])
+                                f = build_li_filters(config["search"]["filters"])
+                                loc = config["search"]["locations"][0] if config["search"]["locations"] else "United States"
+                                url = f"https://www.linkedin.com/jobs/search/?keywords={q}&location={loc}&{f}"
+                                await page.goto(url, wait_until="domcontentloaded")
+                                await capture_screenshot(page, "DIAGNOSTIC_SEARCH_SELFIE")
+                                await context.close()
+                        asyncio.run(run_search_test())
+                        sync_screenshots_to_drive()
+                        st.success("📸 Check Drive!")
+                    except Exception as e: st.error(f"Failed: {e}")
 
     # ── LIVE VISION EXPLORER ──
     st.divider()
@@ -230,10 +172,8 @@ elif page == "Manual Run Control":
         if shots:
             for shot_path in shots[:2]: 
                 st.image(str(shot_path), use_column_width=True, caption=shot_path.name)
-        else:
-            st.info("No vision evidence found yet.")
-    else:
-        st.info("No vision folder detected.")
+        else: st.info("No vision evidence found yet.")
+    else: st.info("No vision folder detected.")
 
     st.divider()
     temp_limit = st.number_input("Jobs to Scrape for this run", min_value=1, value=config["limits"]["scrape_limit"])
@@ -246,3 +186,6 @@ elif page == "Manual Run Control":
         run_pipeline(config_override=config)
         config["limits"]["scrape_limit"] = orig
         st.success("Done!")
+
+else:
+    st.info("Select a page from the sidebar to continue.")
