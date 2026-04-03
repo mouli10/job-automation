@@ -120,52 +120,24 @@ elif page == "Blacklists & Priorities":
 elif page == "Jobs Database":
     st.header("📂 Jobs Database")
     st.markdown("View and filter the jobs currently stored in your persistent cloud database.")
-    
     import pandas as pd
     import sqlite3
-    
     db_path = BASE_DIR / "data/jobs.db"
     if not db_path.exists():
-        st.warning("No database found. Run the pipeline or Sync from Drive first.")
+        st.warning("No database found.")
     else:
         try:
             conn = sqlite3.connect(db_path)
-            # Fetch latest jobs
-            df = pd.read_sql_query("SELECT * FROM jobs ORDER BY date_scraped DESC", conn)
+            # Fetch latest jobs — FIXING THE COLUMN NAME TO scraped_date
+            df = pd.read_sql_query("SELECT * FROM jobs ORDER BY scraped_date DESC", conn)
             conn.close()
             
             if df.empty:
-                st.info("Database is empty. No jobs found yet.")
+                st.info("Database is empty.")
             else:
-                # --- ADVANCED FILTERS ---
-                col1, col2 = st.columns(2)
-                with col1:
-                    search_query = st.text_input("Search Jobs (Company, Title, or URL)", "")
-                with col2:
-                    min_score = st.slider("Min ATS Score", 0.0, 10.0, 0.0)
-                
-                if search_query:
-                    df = df[df['company'].str.contains(search_query, case=False, na=False) | 
-                            df['title'].str.contains(search_query, case=False, na=False)]
-                
-                df = df[df['ats_score'] >= min_score]
-                
-                # Display DataFrame
-                st.dataframe(
-                    df[['title', 'company', 'location', 'ats_score', 'date_scraped', 'job_url']],
-                    use_container_width=True,
-                    column_config={"job_url": st.column_config.LinkColumn("Job Link")}
-                )
-                
-                st.write("---")
-                st.subheader("Selection Details")
-                selected_job = st.selectbox("Select a job for full analysis", df['company'] + " - " + df['title'])
-                if selected_job:
-                    row = df[df['company'] + " - " + df['title'] == selected_job].iloc[0]
-                    st.write(f"**ATS Analysis:** {row['match_reason']}")
-                        
-        except Exception:
-            st.info("📊 The database is initialized but the 'Jobs' table is currently empty. Run your first pipeline to see results here!")
+                st.dataframe(df[['title', 'company', 'location', 'ats_score', 'scraped_date', 'job_url']], use_container_width=True)
+        except Exception as e:
+            st.info(f"📊 Database ready, but the Jobs table is currently empty. Run your first pipeline! Error details: {e}")
 
 elif page == "AI Document Optimization":
     st.header("AI Document Optimization")
@@ -187,17 +159,45 @@ elif page == "Prompt Management":
 elif page == "Manual Run Control":
     st.header("🚀 Manual Control & Sync")
     
-    col_a, col_b = st.columns(2)
+    col_a, col_b, col_c = st.columns(3)
     with col_a:
-        if st.button("Download from Drive Now", use_container_width=True):
+        if st.button("Download Drive ⬇️", use_container_width=True):
             from src.storage import sync_db_from_drive
             sync_db_from_drive()
             st.success("Synced!")
     with col_b:
-        if st.button("Upload to Drive Now", use_container_width=True):
+        if st.button("Backup Drive ⬆️", use_container_width=True):
             from src.storage import sync_db_to_drive
             sync_db_to_drive()
             st.success("Backed up!")
+    with col_c:
+        if st.button("🧪 Test Cloud Eyes", use_container_width=True):
+            with st.spinner("Taking a 'Selfie' in the Cloud..."):
+                try:
+                    import subprocess, asyncio
+                    subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=False)
+                    from src.scraper.linkedin import LinkedInCookieScraper
+                    from src.storage import sync_screenshots_to_drive
+                    from playwright.async_api import async_playwright
+                    from src.config import CHROME_PROFILE_DIR
+                    
+                    async def run_vision_test():
+                        s = LinkedInCookieScraper()
+                        async with async_playwright() as p:
+                            context = await p.chromium.launch_persistent_context(
+                                user_data_dir=str(CHROME_PROFILE_DIR),
+                                headless=True
+                            )
+                            page = await context.new_page()
+                            await page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded")
+                            await s._take_screenshot(page, "DIAGNOSTIC_SELFIE")
+                            await context.close()
+                    
+                    asyncio.run(run_vision_test())
+                    sync_screenshots_to_drive()
+                    st.success("📸 Selfie uploaded to Drive! Check your 'debug_screenshots' folder.")
+                except Exception as e:
+                    st.error(f"Vision test failed: {e}")
 
     # ── LIVE VISION EXPLORER ──
     st.divider()
@@ -207,7 +207,7 @@ elif page == "Manual Run Control":
     if shot_dir.exists():
         shots = sorted(list(shot_dir.glob("*.png")), key=lambda x: x.stat().st_mtime, reverse=True)
         if shots:
-            for shot_path in shots[:2]: # Show last 2 evidence photos
+            for shot_path in shots[:2]: 
                 st.image(str(shot_path), use_container_width=True, caption=shot_path.name)
         else:
             st.info("No vision evidence found yet.")

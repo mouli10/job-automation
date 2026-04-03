@@ -62,13 +62,14 @@ class LinkedInCookieScraper(BaseScraper):
 
     async def _take_screenshot(self, page, name):
         """Captures a debug screenshot to data/screenshots/ for cloud verification."""
+        import time
         from src.config import DATA_DIR
         shot_dir = DATA_DIR / "screenshots"
         shot_dir.mkdir(parents=True, exist_ok=True)
-        path = shot_dir / f"{name}_{int(asyncio.get_event_loop().time())}.png"
+        path = shot_dir / f"{name}_{int(time.time())}.png"
         try:
             await page.screenshot(path=str(path), full_page=False)
-            logger.info(f"📸 Screenshot captured: {name}")
+            logger.info(f"📸 Screenshot captured: {name} (saved to {path.name})")
         except Exception as e:
             logger.warning(f"Failed to capture screenshot {name}: {e}")
 
