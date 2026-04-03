@@ -143,11 +143,27 @@ class LinkedInCookieScraper(BaseScraper):
                     await context.close()
                     return jobs
 
-            logger.info("✅ Security Profile Verified! Proceeding to job extraction.")
-            time_label = config['search']['filters'].get('time_filter', 'Last 24 hours')
+            # --- DYNAMIC LOGGING ---
+            filters = config['search']['filters']
+            time_label = filters.get('time_filter', 'Last 24 hours')
+            
+            # Build Location/Type label
+            loc_types = []
+            if filters.get('onsite'): loc_types.append("Onsite")
+            if filters.get('remote'): loc_types.append("Remote")
+            if filters.get('hybrid'): loc_types.append("Hybrid")
+            loc_label = "+".join(loc_types) if loc_types else "All Types"
+            
+            # Build Exp label
+            exp_lvls = []
+            if filters.get('entry_level'): exp_lvls.append("Entry")
+            if filters.get('associate'): exp_lvls.append("Associate")
+            if filters.get('mid_senior'): exp_lvls.append("Mid-Senior")
+            exp_label = "+".join(exp_lvls) if exp_lvls else "All Levels"
+            
             logger.info(f"🔍 Single combined query | {len(roles)} roles | {location}")
-            logger.info(f"   Filters: {time_label} | Remote+Hybrid | Entry/Associate/Mid-Senior | Sorted: Latest First")
-            # --- END AUTH CHECK ---
+            logger.info(f"   Filters: {time_label} | {loc_label} | {exp_label} | Sorted: Latest First")
+            # --- END DYNAMIC LOGGING ---
 
             limit_hit = False
             scrape_limit = config["limits"]["scrape_limit"]
