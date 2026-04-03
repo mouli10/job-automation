@@ -180,11 +180,19 @@ elif page == "Manual Run Control":
     if st.button("🔥 Start Pipeline Now", type="primary", use_container_width=True):
         import subprocess
         subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=False)
-        orig = config["limits"]["scrape_limit"]
+        
+        # --- IRONCLAD PERSISTENCE ---
+        # Ensure config matches current sidebar state before running
+        if "global_time_filter" in st.session_state:
+            config["search"]["filters"]["time_filter"] = st.session_state.global_time_filter
+        
+        st.write(f"🚀 Starting Pipeline with Filter: **{config['search']['filters']['time_filter']}**")
+        
+        orig_limit = config["limits"]["scrape_limit"]
         config["limits"]["scrape_limit"] = temp_limit
         from src.main import run_pipeline
         run_pipeline(config_override=config)
-        config["limits"]["scrape_limit"] = orig
+        config["limits"]["scrape_limit"] = orig_limit
         st.success("Done!")
 
 else:

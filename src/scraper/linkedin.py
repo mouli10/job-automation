@@ -211,10 +211,11 @@ class LinkedInCookieScraper(BaseScraper):
                     try:
                         await page.wait_for_selector(
                             '.jobs-search-results-list__list-item, .job-card-container, .job-card-list, .base-card, .job-search-card',
-                            timeout=15000
+                            timeout=40000
                         )
                     except Exception:
-                        logger.info(f"  No job cards found on page {page_num + 1} with current selectors.")
+                        logger.warning(f"  ❌ Timeout: No job cards found on page {page_num + 1} after 40s.")
+                        await capture_screenshot(page, f"FAILURE_NO_CARDS_PG_{page_num+1}")
                         break
 
                     await self.safety.human_scroll(page)
