@@ -1,0 +1,69 @@
+{
+    "search": {
+        "roles": [
+            "Data Analyst",
+            "Analytics Engineer",
+            "Data Engineer",
+            "Product Analyst",
+            "BI Engineer"
+        ],
+        "locations": [
+            "United States"
+        ],
+        "filters": {
+            "remote": false,
+            "hybrid": false,
+            "onsite": false,
+            "entry_level": false,
+            "associate": false,
+            "mid_senior": false,
+            "time_filter": "Last 24 hours"
+        }
+    },
+    "limits": {
+        "scrape_limit": 200,
+        "email_limit": 120
+    },
+    "scheduler": {
+        "enabled": true,
+        "run_time": "07:00",
+        "run_times": [
+            "07:00",
+            "19:00"
+        ],
+        "run_days": [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday"
+        ]
+    },
+    "blacklist": {
+        "companies": [],
+        "keywords": [],
+        "roles": []
+    },
+    "optimization": {
+        "enabled": false,
+        "min_ats": 5.0,
+        "max_ats": 8.0
+    },
+    "application_assistant": {
+        "enabled": true,
+        "generate_cover_letter": true
+    },
+    "optional_filters": {
+        "min_ats_score": 0.0,
+        "priority_companies": [],
+        "keyword_priority_boost": false,
+        "priority_keywords": []
+    },
+    "prompt": {
+        "active_prompt": "You are a strict and highly accurate ATS (Applicant Tracking System) expert.\n\nCarefully read the Job Description and Resume below. Evaluate how well the resume matches the job.\n\nYour scoring criteria:\n- Keyword match (skills, tools, technologies mentioned in JD vs resume): 40%\n- Experience level and relevance: 30%  \n- Education and certifications: 15%\n- Achievements and impact quantification: 15%\n\nBe strict and realistic. A perfect match (10.0) means the resume is virtually tailored for this role.\n\nJob Description:\n{job_desc}\n\nResume:\n{resume_text}\n\nReturn ONLY a valid JSON object with NO markdown, NO extra text:\n{{\"ats_score\": <float 0.0 to 10.0>, \"missing_keywords\": [\"keyword1\", \"keyword2\"], \"review\": \"A brief 2-3 sentence review of the resume highlighting strengths and gaps based on the criteria.\"}}",
+        "default_prompt": "You are a strict and highly accurate ATS (Applicant Tracking System) expert.\n\nCarefully read the Job Description and Resume below. Evaluate how well the resume matches the job.\n\nYour scoring criteria:\n- Keyword match (skills, tools, technologies mentioned in JD vs resume): 40%\n- Experience level and relevance: 30%  \n- Education and certifications: 15%\n- Achievements and impact quantification: 15%\n\nBe strict and realistic. A perfect match (10.0) means the resume is virtually tailored for this role.\n\nJob Description:\n{job_desc}\n\nResume:\n{resume_text}\n\nReturn ONLY a valid JSON object with NO markdown, NO extra text:\n{{\"ats_score\": <float 0.0 to 10.0>, \"missing_keywords\": [\"keyword1\", \"keyword2\"], \"review\": \"A brief 2-3 sentence review of the resume highlighting strengths and gaps based on the criteria.\"}}",
+        "prompt_history": []
+    }
+}

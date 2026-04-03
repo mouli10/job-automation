@@ -1,0 +1,31 @@
+# 📄 Python / App Automation 
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Virtual Environment
+venv/
+env/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Application Data
+data/chrome_profile/
+data/tmp_sync/
+data/logs/
+*.lock
+
+# Environment / Private Keys (Git should not track these for safety)
+.env
+credentials.json
+token.json
+
+# Local artifacts
+*.zip
+*.log
