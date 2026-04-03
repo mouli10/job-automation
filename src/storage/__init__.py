@@ -12,6 +12,12 @@ from src.config import GDRIVE_CREDENTIALS_PATH, GDRIVE_FOLDER_ID, OPTIMIZED_RESU
 
 logger = logging.getLogger(__name__)
 
+# ── Cloud Teleport Constants ────────────────────────────────────────────────
+DB_FILE_NAME = "jobs.db"
+CONFIG_FILE_NAME = "config.json"
+DATABASE_FOLDER_NAME = "database"
+CONFIG_FOLDER_NAME = "config"
+
 def get_drive_service():
     """Authenticates and returns the Google Drive v3 service resource."""
     if not GDRIVE_CREDENTIALS_PATH or not Path(GDRIVE_CREDENTIALS_PATH).exists():
@@ -157,3 +163,99 @@ def upload_resume(filepath: str, filename: str) -> str:
     # --- LOCAL FALLBACK ---
     logger.info(f"Document retained locally (Drive skipped): {filepath}")
     return str(filepath)
+
+# ── Cloud Sync Logic ────────────────────────────────────────────────────────
+
+def _get_or_create_folder(service, parent_id, folder_name):
+    query = f"'{parent_id}' in parents and name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+    results = service.files().list(q=query, fields="files(id, name)").execute()
+    folders = results.get('files', [])
+    if folders:
+        return folders[0]['id']
+    
+    file_metadata = {
+        'name': folder_name,
+        'mimeType': 'application/vnd.google-apps.folder',
+        'parents': [parent_id]
+    }
+    folder = service.files().create(body=file_metadata, fields='id').execute()
+    return folder.get('id')
+
+def _download_file(service, folder_id, filename, local_path):
+    query = f"'{folder_id}' in parents and name='{filename}' and trashed=false"
+    results = service.files().list(q=query, fields="files(id, name)").execute()
+    files = results.get('files', [])
+    if not files:
+        return False
+    
+    file_id = files[0]['id']
+    from googleapiclient.http import MediaIoBaseDownload
+    request = service.files().get_media(fileId=file_id)
+    fh = io.BytesIO()
+    downloader = MediaIoBaseDownload(fh, request)
+    done = False
+    while not done:
+        status, done = downloader.next_chunk()
+    
+    fh.seek(0)
+    with open(local_path, "wb") as f:
+        f.write(fh.read())
+    return True
+
+def _upload_file(service, folder_id, filename, local_path):
+    # Delete existing version first to avoid duplicates
+    query = f"'{folder_id}' in parents and name='{filename}' and trashed=false"
+    results = service.files().list(q=query, fields="files(id, name)").execute()
+    for f in results.get('files', []):
+        service.files().delete(fileId=f['id']).execute()
+    
+    from googleapiclient.http import MediaFileUpload
+    file_metadata = {'name': filename, 'parents': [folder_id]}
+    media = MediaFileUpload(local_path, resumable=True)
+    service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+
+def sync_db_from_drive():
+    service = get_drive_service()
+    if not service or not GDRIVE_FOLDER_ID: return False
+    
+    folder_id = _get_or_create_folder(service, GDRIVE_FOLDER_ID, DATABASE_FOLDER_NAME)
+    from src.config import DATA_DIR
+    local_path = DATA_DIR / DB_FILE_NAME
+    if _download_file(service, folder_id, DB_FILE_NAME, local_path):
+        logger.info(f"💾 Database synced from Cloud (Google Drive)")
+        return True
+    return False
+
+def sync_db_to_drive():
+    service = get_drive_service()
+    if not service or not GDRIVE_FOLDER_ID: return
+    
+    folder_id = _get_or_create_folder(service, GDRIVE_FOLDER_ID, DATABASE_FOLDER_NAME)
+    from src.config import DATA_DIR
+    local_path = DATA_DIR / DB_FILE_NAME
+    if local_path.exists():
+        _upload_file(service, folder_id, DB_FILE_NAME, str(local_path))
+        logger.info(f"💾 Database backed up to Cloud (Google Drive)")
+
+def sync_config_from_drive():
+    service = get_drive_service()
+    if not service or not GDRIVE_FOLDER_ID: return False
+    
+    folder_id = _get_or_create_folder(service, GDRIVE_FOLDER_ID, CONFIG_FOLDER_NAME)
+    from src.config import DATA_DIR
+    local_path = DATA_DIR / CONFIG_FILE_NAME
+    if _download_file(service, folder_id, CONFIG_FILE_NAME, local_path):
+        logger.info(f"⚙️ Configuration synced from Cloud (Google Drive)")
+        return True
+    return False
+
+def sync_config_to_drive():
+    service = get_drive_service()
+    if not service or not GDRIVE_FOLDER_ID: return
+    
+    folder_id = _get_or_create_folder(service, GDRIVE_FOLDER_ID, CONFIG_FOLDER_NAME)
+    from src.config import DATA_DIR
+    local_path = DATA_DIR / CONFIG_FILE_NAME
+    if local_path.exists():
+        _upload_file(service, folder_id, CONFIG_FILE_NAME, str(local_path))
+        logger.info(f"⚙️ Configuration backed up to Cloud (Google Drive)")

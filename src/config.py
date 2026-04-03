@@ -4,6 +4,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# ── Cloud Secret Reconstruction ─────────────────────────────────────────────
+# In GitHub Actions, we store JSON files as base64 or raw strings in Secrets.
+# We must recreate the physical files for Google Auth to work.
+import json
+for env_key, filename in [("GDRIVE_CREDENTIALS_JSON", "credentials.json"), 
+                          ("GDRIVE_TOKEN_JSON", "token.json")]:
+    val = os.getenv(env_key)
+    if val:
+        try:
+            # Try to parse as JSON to ensure it's valid before writing
+            data = json.loads(val)
+            with open(Path(__file__).resolve().parent.parent / filename, "w") as f:
+                json.dump(data, f)
+        except Exception as e:
+            print(f"⚠️ Failed to reconstruct {filename} from env: {e}")
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Database

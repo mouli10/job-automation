@@ -127,6 +127,9 @@ def run_pipeline(config_override: dict = None):
         scraper = get_scraper()
         jobs_data = scraper.scrape(roles, locations, config=admin_config)
 
+        import gc
+        gc.collect() # Trigger immediate cleanup
+
         new_jobs = []
         for data in jobs_data:
             title = (data.get("title") or "").strip()
@@ -152,6 +155,9 @@ def run_pipeline(config_override: dict = None):
         for j in new_jobs:
             db.refresh(j)
         logger.info(f"\n📥 Scraped and saved {len(new_jobs)} new jobs.\n")
+        
+        import gc
+        gc.collect() # Trigger immediate cleanup
 
         if not new_jobs:
             logger.info("No new jobs today. Exiting pipeline.")

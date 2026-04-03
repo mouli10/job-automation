@@ -77,13 +77,21 @@ class LinkedInCookieScraper(BaseScraper):
             logger.info(f"Booting persistent Chrome Profile at {CHROME_PROFILE_DIR}...")
             context = await p.chromium.launch_persistent_context(
                 user_data_dir=str(CHROME_PROFILE_DIR),
-                headless=False,
+                headless=True,
                 user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 viewport={'width': 1280, 'height': 800},
                 args=["--disable-blink-features=AutomationControlled"]
             )
 
             page = context.pages[0] if context.pages else await context.new_page()
+
+            # --- 4GB RAM Optimization: Block Images/Media ---
+            async def block_media(route):
+                if route.request.resource_type in ["image", "media", "font"]:
+                    await route.abort()
+                else:
+                    await route.continue_()
+            await page.route("**/*", block_media)
 
             # --- AUTH CHECK ---
             logger.info("Auditing Chrome authentication status on LinkedIn Feed...")

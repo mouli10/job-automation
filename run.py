@@ -140,6 +140,17 @@ def main():
     logger.info("=" * 50)
     logger.info("🔔 Watchdog triggered by Task Scheduler")
 
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", choices=["local", "cloud"], default="local")
+    args = parser.parse_args()
+
+    if args.mode == "cloud":
+        logger.info("☁️ CLOUD MODE ACTIVE: Syncing database and config from Drive...")
+        from src.storage import sync_db_from_drive, sync_config_from_drive
+        sync_db_from_drive()
+        sync_config_from_drive()
+
     matched_time = _get_matched_schedule()
     if not matched_time:
         logger.info("⏸  Not the right time for any scheduled run. Standing by.")
@@ -162,6 +173,12 @@ def main():
              logger.info("⏸  Skipping: Pipeline is already active.")
         else:
              logger.error(f"❌ Watchdog task failed: {e}")
+    finally:
+        if args.mode == "cloud":
+            logger.info("☁️ CLOUD MODE COMPLETE: Backing up database and config to Drive...")
+            from src.storage import sync_db_to_drive, sync_config_to_drive
+            sync_db_to_drive()
+            sync_config_to_drive()
 
 
 
