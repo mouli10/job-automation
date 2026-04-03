@@ -60,6 +60,18 @@ class LinkedInCookieScraper(BaseScraper):
     def __init__(self):
         self.safety = SafetyController()
 
+    async def _take_screenshot(self, page, name):
+        """Captures a debug screenshot to data/screenshots/ for cloud verification."""
+        from src.config import DATA_DIR
+        shot_dir = DATA_DIR / "screenshots"
+        shot_dir.mkdir(parents=True, exist_ok=True)
+        path = shot_dir / f"{name}_{int(asyncio.get_event_loop().time())}.png"
+        try:
+            await page.screenshot(path=str(path), full_page=False)
+            logger.info(f"📸 Screenshot captured: {name}")
+        except Exception as e:
+            logger.warning(f"Failed to capture screenshot {name}: {e}")
+
     async def _async_scrape(self, roles: List[str], locations: List[str], config: dict = None) -> List[Dict]:
         if config is None:
             from src.config import admin_config
@@ -144,6 +156,7 @@ class LinkedInCookieScraper(BaseScraper):
                     return jobs
 
             # --- DYNAMIC LOGGING ---
+            await self._take_screenshot(page, "login_success_feed")
             filters = config['search']['filters']
             time_label = filters.get('time_filter', 'Last 24 hours')
             
@@ -186,6 +199,8 @@ class LinkedInCookieScraper(BaseScraper):
                 try:
                     await page.goto(url, wait_until="domcontentloaded")
                     await self.safety.random_delay()
+                    if page_num == 0:
+                        await self._take_screenshot(page, "search_results_page_1")
                     await self.safety.random_mouse_move(page)
 
                     is_captcha = await self.safety.detect_captcha(page)

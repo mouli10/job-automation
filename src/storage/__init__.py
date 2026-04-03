@@ -17,6 +17,7 @@ DB_FILE_NAME = "jobs.db"
 CONFIG_FILE_NAME = "config.json"
 DATABASE_FOLDER_NAME = "database"
 CONFIG_FOLDER_NAME = "config"
+SCREENSHOTS_FOLDER_NAME = "debug_screenshots"
 
 def get_drive_service():
     """Authenticates and returns the Google Drive v3 service resource."""
@@ -259,3 +260,42 @@ def sync_config_to_drive():
     if local_path.exists():
         _upload_file(service, folder_id, CONFIG_FILE_NAME, str(local_path))
         logger.info(f"⚙️ Configuration backed up to Cloud (Google Drive)")
+
+def cleanup_debug_screenshots():
+    """Wipes the debug screenshots folder on Google Drive entirely."""
+    service = get_drive_service()
+    if not service or not GDRIVE_FOLDER_ID: return
+    
+    try:
+        query = f"'{GDRIVE_FOLDER_ID}' in parents and name='{SCREENSHOTS_FOLDER_NAME}' and trashed=false"
+        results = service.files().list(q=query, fields="files(id, name)").execute()
+        for f in results.get('files', []):
+            service.files().delete(fileId=f['id']).execute()
+            logger.info(f"🧹 Cleaned up old evidence: {SCREENSHOTS_FOLDER_NAME}")
+    except Exception as e:
+        logger.debug(f"Cloud cleanup failed (folder might not exist yet): {e}")
+
+def sync_screenshots_to_drive():
+    """Uploads all fresh .png screenshots captured during this run to Google Drive."""
+    service = get_drive_service()
+    if not service or not GDRIVE_FOLDER_ID: return
+    
+    from src.config import DATA_DIR
+    screenshot_dir = DATA_DIR / "screenshots"
+    if not screenshot_dir.exists(): return
+    
+    screenshot_files = list(screenshot_dir.glob("*.png"))
+    if not screenshot_files: return
+    
+    logger.info(f"📸 Syncing {len(screenshot_files)} 'Evidence Photos' to Google Drive...")
+    try:
+        folder_id = _get_or_create_folder(service, GDRIVE_FOLDER_ID, SCREENSHOTS_FOLDER_NAME)
+        for path in screenshot_files:
+            from googleapiclient.http import MediaFileUpload
+            file_metadata = {'name': path.name, 'parents': [folder_id]}
+            media = MediaFileUpload(str(path), mimetype='image/png')
+            service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+            
+        logger.info(f"✅ 'Cloud Vision' synced successfully to {SCREENSHOTS_FOLDER_NAME} folder!")
+    except Exception as e:
+        logger.error(f"❌ Failed to sync cloud vision: {e}")

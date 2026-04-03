@@ -143,21 +143,29 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["local", "cloud"], default="local")
+    parser.add_argument("--force", action="store_true", help="Force a run even if not at scheduled time")
     args = parser.parse_args()
 
     if args.mode == "cloud":
-        logger.info("☁️ CLOUD MODE ACTIVE: Syncing database and config from Drive...")
-        from src.storage import sync_db_from_drive, sync_config_from_drive
+        logger.info("☁️ CLOUD MODE ACTIVE: Syncing database, config and cleaning screenshots...")
+        from src.storage import (
+            sync_db_from_drive, sync_config_from_drive,
+            cleanup_debug_screenshots
+        )
         sync_db_from_drive()
         sync_config_from_drive()
+        cleanup_debug_screenshots()  # Wipe old evidence from Drive
 
     matched_time = _get_matched_schedule()
-    if not matched_time:
+    if not matched_time and not args.force:
         logger.info("⏸  Not the right time for any scheduled run. Standing by.")
         return
 
-    if _already_ran(matched_time):
-        logger.info(f"✅ Pipeline already ran for the {matched_time} slot today. Exiting.")
+    # For forced runs, use a dummy label if no match
+    run_label = matched_time if matched_time else "Manual-Force"
+
+    if not args.force and _already_ran(run_label):
+        logger.info(f"✅ Pipeline already ran for the {run_label} slot today. Exiting.")
         return
 
     try:
@@ -165,8 +173,9 @@ def main():
         from src.config_manager import ConfigManager
         config = ConfigManager.load_config()
         run_pipeline(config_override=config)
-        _mark_ran(matched_time)
-        logger.info(f"✅ Pipeline task finished for {matched_time} slot.")
+        if matched_time:
+            _mark_ran(matched_time)
+        logger.info(f"✅ Pipeline task finished for {run_label} slot.")
     except Exception as e:
         # Note: Collision errors (RuntimeError) from main.py will be caught here silently if needed
         if "already running" in str(e):
@@ -175,10 +184,11 @@ def main():
              logger.error(f"❌ Watchdog task failed: {e}")
     finally:
         if args.mode == "cloud":
-            logger.info("☁️ CLOUD MODE COMPLETE: Backing up database and config to Drive...")
-            from src.storage import sync_db_to_drive, sync_config_to_drive
+            logger.info("☁️ CLOUD MODE COMPLETE: Backing up data and syncing Cloud Vision...")
+            from src.storage import sync_db_to_drive, sync_config_to_drive, sync_screenshots_to_drive
             sync_db_to_drive()
             sync_config_to_drive()
+            sync_screenshots_to_drive() # Upload new evidence to Drive
 
 
 
