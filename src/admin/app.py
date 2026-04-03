@@ -66,7 +66,24 @@ if st.sidebar.button("Update Login Session"):
         save_state()
         st.sidebar.success("Session Updated!")
 
+st.sidebar.divider()
+st.sidebar.subheader("🛑 Emergency Stop")
+if st.sidebar.button("Force Unlock & Stop Background Pipeline"):
+    from src.config import DATA_DIR
+    lf = DATA_DIR / "pipeline.lock"
+    if lf.exists():
+        try:
+            pid = int(lf.read_text().strip())
+            import psutil
+            p = psutil.Process(pid)
+            p.terminate()
+        except:
+            pass
+        lf.unlink(missing_ok=True)
+    st.sidebar.success("🛑 Process Killed and Lock Removed! You can start again.")
+
 # --- PAGE LOGIC ---
+
 
 if page == "Search & Filters":
     st.header("Search & Filters Configuration")
