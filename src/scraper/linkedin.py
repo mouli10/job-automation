@@ -234,56 +234,43 @@ class LinkedInCookieScraper(BaseScraper):
                         try:
                             await self.safety.random_delay()
 
-                            # --- LINK + TITLE EXTRACTION ---
+                            # --- ROBUST TEXT & LINK EXTRACTION (Timeout Protected) ---
                             link = None
                             title = ""
-
-                            anchors = await card.locator('a[href*="/jobs/view/"]').all()
-                            if anchors:
-                                link = await anchors[0].get_attribute("href")
-                                if link and not link.startswith("http"):
-                                    link = "https://www.linkedin.com" + link.split("?")[0]
-                                try:
-                                    title = await anchors[0].inner_text()
-                                except Exception:
-                                    pass
-
-                            if not title:
-                                for sel in [
-                                    '.job-card-list__title',
-                                    '.artdeco-entity-lockup__title',
-                                    '.job-card-container__link'
-                                ]:
-                                    try:
-                                        loc = card.locator(sel).first
-                                        if await loc.count() > 0:
-                                            title = await loc.inner_text()
-                                            if not link:
-                                                href = await loc.get_attribute("href")
-                                                if href:
-                                                    link = "https://www.linkedin.com" + href.split("?")[0] if not href.startswith("http") else href
-                                            break
-                                    except Exception:
-                                        continue
-
-                            title = title.strip().split("\n")[0]
-                            if not title:
-                                continue
-
-                            # --- COMPANY EXTRACTION ---
                             company = ""
-                            for sel in [
-                                '.job-card-container__primary-description',
-                                '.artdeco-entity-lockup__subtitle',
-                                '.job-card-list__company-name'
-                            ]:
+                            
+                            try:
+                                # Grab ALL text in the card instantly (1s timeout)
+                                card_text = await card.inner_text(timeout=1000)
+                                lines = [ln.strip() for ln in card_text.split('\n') if ln.strip()]
+                            except Exception:
+                                lines = []
+
+                            # Try specific link locators
+                            for a_sel in ['a[href*="/jobs/view/"]', 'a.job-card-container__link', 'a.base-card__full-link', 'a']:
                                 try:
-                                    loc = card.locator(sel).first
-                                    if await loc.count() > 0:
-                                        company = (await loc.inner_text()).strip().split("\n")[0]
+                                    anchors = await card.locator(a_sel).all()
+                                    if anchors:
+                                        href = await anchors[0].get_attribute("href", timeout=1000)
+                                        if href:
+                                            link = href if href.startswith("http") else "https://www.linkedin.com" + href.split("?")[0]
+                                            t = await anchors[0].inner_text(timeout=1000)
+                                            if t and len(t) > 3 and "logo" not in t.lower():
+                                                title = t.strip()
                                         break
                                 except Exception:
                                     continue
+
+                            # Fallback if specific titles failed
+                            if not title and len(lines) > 0:
+                                # The first non-trivial line is usually the title, unless it's "Promoted" or similar
+                                valid_lines = [l for l in lines if l not in ("Promoted", "Actively Hiring") and "logo" not in l.lower()]
+                                title = valid_lines[0] if valid_lines else "Unknown Position"
+                                
+                            if not company and len(lines) > 1:
+                                valid_lines = [l for l in lines if l not in ("Promoted", "Actively Hiring") and "logo" not in l.lower()]
+                                company = valid_lines[1] if len(valid_lines) > 1 else "Unknown Company"
+
 
                             # --- PRE-SCRAPE BLACKLIST CHECK ---
                             blacklisted = False
