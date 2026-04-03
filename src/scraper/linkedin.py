@@ -210,7 +210,7 @@ class LinkedInCookieScraper(BaseScraper):
 
                     try:
                         await page.wait_for_selector(
-                            '.job-card-container, .job-card-list, .base-card, .job-search-card',
+                            '.jobs-search-results-list__list-item, .job-card-container, .job-card-list, .base-card, .job-search-card',
                             timeout=15000
                         )
                     except Exception:
@@ -218,7 +218,7 @@ class LinkedInCookieScraper(BaseScraper):
                         break
 
                     await self.safety.human_scroll(page)
-                    cards = await page.locator('.job-card-container, .job-card-list, .base-card, .job-search-card').all()
+                    cards = await page.locator('.jobs-search-results-list__list-item, .job-card-container, .job-card-list, .base-card, .job-search-card').all()
 
                     if not cards:
                         logger.info("  No cards found. End of results.")
