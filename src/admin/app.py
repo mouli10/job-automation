@@ -388,6 +388,15 @@ elif page == "Manual Run Control":
         temp_limit = st.number_input("Jobs to Scrape for this run", min_value=1, max_value=2000, value=config["limits"]["scrape_limit"])
         
     if st.button("🔥 Start Pipeline Now", type="primary", use_container_width=True):
+        # ── PLAYWRIGHT BROWSER GUARD ──
+        # In Streamlit Cloud, browsers aren't pre-installed. We must install them on-the-fly.
+        try:
+            import subprocess
+            with st.spinner("🛠️ Ensuring Playwright browsers are installed..."):
+                subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
+        except Exception as e:
+            st.warning(f"Note: Playwright install check had a minor issue: {e}")
+
         # Temporarily override config for this runtime
         original_limit = config["limits"]["scrape_limit"]
         config["limits"]["scrape_limit"] = temp_limit
