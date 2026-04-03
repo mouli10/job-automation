@@ -119,16 +119,53 @@ elif page == "Blacklists & Priorities":
 
 elif page == "Jobs Database":
     st.header("📂 Jobs Database")
+    st.markdown("View and filter the jobs currently stored in your persistent cloud database.")
+    
     import pandas as pd
     import sqlite3
+    
     db_path = BASE_DIR / "data/jobs.db"
-    if db_path.exists():
-        conn = sqlite3.connect(db_path)
-        df = pd.read_sql_query("SELECT * FROM jobs ORDER BY date_scraped DESC", conn)
-        conn.close()
-        st.dataframe(df[['title', 'company', 'ats_score', 'date_scraped', 'job_url']], use_container_width=True)
+    if not db_path.exists():
+        st.warning("No database found. Run the pipeline or Sync from Drive first.")
     else:
-        st.warning("No database found.")
+        try:
+            conn = sqlite3.connect(db_path)
+            # Fetch latest jobs
+            df = pd.read_sql_query("SELECT * FROM jobs ORDER BY date_scraped DESC", conn)
+            conn.close()
+            
+            if df.empty:
+                st.info("Database is empty. No jobs found yet.")
+            else:
+                # --- ADVANCED FILTERS ---
+                col1, col2 = st.columns(2)
+                with col1:
+                    search_query = st.text_input("Search Jobs (Company, Title, or URL)", "")
+                with col2:
+                    min_score = st.slider("Min ATS Score", 0.0, 10.0, 0.0)
+                
+                if search_query:
+                    df = df[df['company'].str.contains(search_query, case=False, na=False) | 
+                            df['title'].str.contains(search_query, case=False, na=False)]
+                
+                df = df[df['ats_score'] >= min_score]
+                
+                # Display DataFrame
+                st.dataframe(
+                    df[['title', 'company', 'location', 'ats_score', 'date_scraped', 'job_url']],
+                    use_container_width=True,
+                    column_config={"job_url": st.column_config.LinkColumn("Job Link")}
+                )
+                
+                st.write("---")
+                st.subheader("Selection Details")
+                selected_job = st.selectbox("Select a job for full analysis", df['company'] + " - " + df['title'])
+                if selected_job:
+                    row = df[df['company'] + " - " + df['title'] == selected_job].iloc[0]
+                    st.write(f"**ATS Analysis:** {row['match_reason']}")
+                        
+        except Exception:
+            st.info("📊 The database is initialized but the 'Jobs' table is currently empty. Run your first pipeline to see results here!")
 
 elif page == "AI Document Optimization":
     st.header("AI Document Optimization")
