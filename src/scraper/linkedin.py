@@ -144,8 +144,9 @@ class LinkedInCookieScraper(BaseScraper):
                     return jobs
 
             logger.info("✅ Security Profile Verified! Proceeding to job extraction.")
+            time_label = config['search']['filters'].get('time_filter', 'Last 24 hours')
             logger.info(f"🔍 Single combined query | {len(roles)} roles | {location}")
-            logger.info(f"   Filters: Last 24hrs | Remote+Hybrid | Entry/Associate/Mid-Senior | Sorted: Latest First")
+            logger.info(f"   Filters: {time_label} | Remote+Hybrid | Entry/Associate/Mid-Senior | Sorted: Latest First")
             # --- END AUTH CHECK ---
 
             limit_hit = False
