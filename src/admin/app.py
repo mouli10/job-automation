@@ -1,5 +1,6 @@
 import streamlit as st
 import sys
+import importlib
 from pathlib import Path
 
 # Add src to the path so we can import modules
@@ -48,7 +49,7 @@ page = st.sidebar.radio("Navigation", [
 st.sidebar.divider()
 st.sidebar.subheader("⚙️ Quick Settings")
 
-# Date Posted (Shared across all pages)
+# Date Posted (Standardized Spelling)
 time_options = ["Last 24 hours", "Past Week", "Past Month", "Any Time"]
 curr_time = config["search"]["filters"].get("time_filter", "Last 24 hours")
 idx = time_options.index(curr_time) if curr_time in time_options else 0
@@ -181,12 +182,15 @@ elif page == "Manual Run Control":
         import subprocess
         subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=False)
         
-        # --- IRONCLAD PERSISTENCE ---
-        # Ensure config matches current sidebar state before running
-        if "global_time_filter" in st.session_state:
-            config["search"]["filters"]["time_filter"] = st.session_state.global_time_filter
+        # --- ATOMIC CACHE BUSTER ---
+        import src.main
+        import src.scraper.linkedin
+        importlib.reload(src.scraper.linkedin)
+        importlib.reload(src.main)
         
-        st.write(f"🚀 Starting Pipeline with Filter: **{config['search']['filters']['time_filter']}**")
+        # --- IRONCLAD PERSISTENCE ---
+        config["search"]["filters"]["time_filter"] = st.session_state.global_time_filter
+        st.write(f"🚀 ATOMIC SYNC: Filter forced to **{config['search']['filters']['time_filter']}**")
         
         orig_limit = config["limits"]["scrape_limit"]
         config["limits"]["scrape_limit"] = temp_limit
