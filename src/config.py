@@ -27,13 +27,13 @@ DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR}/data/jobs.db")
 DB_RETENTION_DAYS = int(os.getenv("DB_RETENTION_DAYS", 60))
 
 # LLM
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").strip('"\'')
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip('"\'')
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip('"\'')
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").strip().strip('"\'')
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip().strip('"\'')
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip().strip('"\'')
 
 # Email
-GMAIL_USER = os.getenv("GMAIL_USER", "").strip('"\'')
-GMAIL_PASSWORD = os.getenv("GMAIL_PASSWORD", "").strip('"\'')
+GMAIL_USER = os.getenv("GMAIL_USER", "").strip().strip('"\'')
+GMAIL_PASSWORD = os.getenv("GMAIL_PASSWORD", "").strip().strip('"\'')
 
 
 from src.config_manager import ConfigManager
@@ -45,8 +45,8 @@ admin_config = ConfigManager.load_config()
 SEARCH_ROLES = admin_config["search"]["roles"]
 SEARCH_LOCATIONS = admin_config["search"]["locations"]
 
-SCRAPER_ENGINE = os.getenv("SCRAPER_ENGINE", "linkedin_cookie").strip('"\'')
-LINKEDIN_LI_AT_COOKIE = os.getenv("LINKEDIN_LI_AT_COOKIE", "").strip('"\'')
+SCRAPER_ENGINE = os.getenv("SCRAPER_ENGINE", "linkedin_cookie").strip().strip('"\'')
+LINKEDIN_LI_AT_COOKIE = os.getenv("LINKEDIN_LI_AT_COOKIE", "").strip().strip('"\'')
 APIFY_API_TOKEN = os.getenv("APIFY_API_TOKEN", "")
 
 # Scraping Limits
@@ -71,7 +71,10 @@ OPTIMIZED_RESUMES_DIR = RESUMES_DIR / "optimized"
 
 # Google Drive Constants
 GDRIVE_CREDENTIALS_PATH = str(BASE_DIR / "credentials.json")
-GDRIVE_FOLDER_ID = os.getenv("GDRIVE_FOLDER_ID", "1RjH6A-y8c7_hU8eF5c9vXmY9_sDtfQxw").strip('"\'')  # Fallback dummy ID
+# Using the confirmed actual ID as fallback in case the GitHub secret is mangled
+GDRIVE_FOLDER_ID = os.getenv("GDRIVE_FOLDER_ID", "1RjH6A-y8c7_hU8eF5c9vXmY9_sDtfQxw").strip().strip('"\'')
+if not GDRIVE_FOLDER_ID or GDRIVE_FOLDER_ID == "1RjH6A-y8c7_hU8eF5c9vXmY9_sDtfQxw":
+    GDRIVE_FOLDER_ID = "1X4Q4P3we0SeZemb48zuoHkELbxIu6jPS"
 
 # Create all required directories
 for d in [DATA_DIR, RESUMES_DIR, ORIGINAL_RESUMES_DIR, OPTIMIZED_RESUMES_DIR, REPORTS_DIR, LOGS_DIR, CHROME_PROFILE_DIR]:
