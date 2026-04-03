@@ -7,6 +7,7 @@ from src.config import SCRAPER_MAX_PAGES, CHROME_PROFILE_DIR, SEARCH_ROLES
 from src.scraper.safety import SafetyController
 from urllib.parse import quote_plus
 
+from src.scraper.vision import capture_screenshot
 logger = logging.getLogger(__name__)
 
 from src.config import admin_config
@@ -60,18 +61,6 @@ class LinkedInCookieScraper(BaseScraper):
     def __init__(self):
         self.safety = SafetyController()
 
-    async def _take_screenshot(self, page, name):
-        """Captures a debug screenshot to data/screenshots/ for cloud verification."""
-        import time
-        from src.config import DATA_DIR
-        shot_dir = DATA_DIR / "screenshots"
-        shot_dir.mkdir(parents=True, exist_ok=True)
-        path = shot_dir / f"{name}_{int(time.time())}.png"
-        try:
-            await page.screenshot(path=str(path), full_page=False)
-            logger.info(f"📸 Screenshot captured: {name} (saved to {path.name})")
-        except Exception as e:
-            logger.warning(f"Failed to capture screenshot {name}: {e}")
 
     async def _async_scrape(self, roles: List[str], locations: List[str], config: dict = None) -> List[Dict]:
         if config is None:
@@ -157,7 +146,7 @@ class LinkedInCookieScraper(BaseScraper):
                     return jobs
 
             # --- DYNAMIC LOGGING ---
-            await self._take_screenshot(page, "login_success_feed")
+            await capture_screenshot(page, "login_success_feed")
             filters = config['search']['filters']
             time_label = filters.get('time_filter', 'Last 24 hours')
             
@@ -201,7 +190,7 @@ class LinkedInCookieScraper(BaseScraper):
                     await page.goto(url, wait_until="domcontentloaded")
                     await self.safety.random_delay()
                     if page_num == 0:
-                        await self._take_screenshot(page, "search_results_page_1")
+                        await capture_screenshot(page, "search_results_page_1")
                     await self.safety.random_mouse_move(page)
 
                     is_captcha = await self.safety.detect_captcha(page)

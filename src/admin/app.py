@@ -176,13 +176,12 @@ elif page == "Manual Run Control":
                 try:
                     import subprocess, asyncio
                     subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=False)
-                    from src.scraper.linkedin import LinkedInCookieScraper
+                    from src.scraper.vision import capture_screenshot
                     from src.storage import sync_screenshots_to_drive
                     from playwright.async_api import async_playwright
                     from src.config import CHROME_PROFILE_DIR
                     
                     async def run_vision_test():
-                        s = LinkedInCookieScraper()
                         async with async_playwright() as p:
                             context = await p.chromium.launch_persistent_context(
                                 user_data_dir=str(CHROME_PROFILE_DIR),
@@ -190,7 +189,7 @@ elif page == "Manual Run Control":
                             )
                             page = await context.new_page()
                             await page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded")
-                            await s._take_screenshot(page, "DIAGNOSTIC_SELFIE")
+                            await capture_screenshot(page, "DIAGNOSTIC_SELFIE")
                             await context.close()
                     
                     asyncio.run(run_vision_test())
