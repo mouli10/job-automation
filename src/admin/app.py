@@ -8,8 +8,10 @@ sys.path.append(str(BASE_DIR))
 
 from src.config_manager import ConfigManager
 
-# Load current config
-config = ConfigManager.load_config()
+# Load current config into session state for persistence across UI interactions
+if 'config' not in st.session_state:
+    st.session_state.config = ConfigManager.load_config()
+config = st.session_state.config
 
 # --- CLOUD SYNC AT STARTUP ---
 # If running in Streamlit Cloud, we want to start with the latest data

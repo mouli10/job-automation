@@ -197,15 +197,15 @@ class LinkedInCookieScraper(BaseScraper):
 
                     try:
                         await page.wait_for_selector(
-                            '.job-card-container, .job-card-list',
+                            '.job-card-container, .job-card-list, .base-card, .job-search-card',
                             timeout=15000
                         )
                     except Exception:
-                        logger.info(f"  No job cards on page {page_num + 1}. Stopping pagination.")
+                        logger.info(f"  No job cards found on page {page_num + 1} with current selectors.")
                         break
 
                     await self.safety.human_scroll(page)
-                    cards = await page.locator('.job-card-container, .job-card-list').all()
+                    cards = await page.locator('.job-card-container, .job-card-list, .base-card, .job-search-card').all()
 
                     if not cards:
                         logger.info("  No cards found. End of results.")
