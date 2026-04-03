@@ -182,11 +182,12 @@ elif page == "Manual Run Control":
         import subprocess
         subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=False)
         
-        # --- ATOMIC CACHE BUSTER ---
-        import src.main
-        import src.scraper.linkedin
-        importlib.reload(src.scraper.linkedin)
-        importlib.reload(src.main)
+        # --- NUCLEAR CACHE BUSTER ---
+        # Streamlit relentlessly caches old modules. We must obliterate them.
+        import sys
+        for k in list(sys.modules.keys()):
+            if k.startswith("src."):
+                del sys.modules[k]
         
         # --- IRONCLAD PERSISTENCE ---
         config["search"]["filters"]["time_filter"] = st.session_state.global_time_filter
@@ -194,8 +195,8 @@ elif page == "Manual Run Control":
         
         orig_limit = config["limits"]["scrape_limit"]
         config["limits"]["scrape_limit"] = temp_limit
-        from src.main import run_pipeline
-        run_pipeline(config_override=config)
+        import src.main
+        src.main.run_pipeline(config_override=config)
         config["limits"]["scrape_limit"] = orig_limit
         st.success("Done!")
 
