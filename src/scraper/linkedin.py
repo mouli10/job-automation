@@ -232,6 +232,7 @@ class LinkedInCookieScraper(BaseScraper):
                             break
 
                         try:
+                            logger.info(f"    -> Processing card {cards.index(card) + 1}/{len(cards)}...")
                             await self.safety.random_delay()
 
                             # --- ROBUST TEXT & LINK EXTRACTION (Timeout Protected) ---
@@ -301,7 +302,10 @@ class LinkedInCookieScraper(BaseScraper):
                             seen_keys.add(dedup_key)
 
                             # --- DEEP CLICK: fetch full job description ---
-                            await card.click()
+                            try:
+                                await card.click(timeout=2000, force=True)
+                            except Exception as e:
+                                logger.warning(f"  Could not click card: {e}")
                             await asyncio.sleep(2.0)
 
                             description = ""
@@ -353,7 +357,7 @@ class LinkedInCookieScraper(BaseScraper):
                             logger.info(f"  ✓ [{self.safety.jobs_scraped_today}] {title} @ {company}")
 
                         except Exception as e:
-                            logger.debug(f"  Card skipped: {e}")
+                            logger.warning(f"  Card skipped: {e}")
 
                 except Exception as e:
                     logger.error(f"Error on page {page_num + 1}: {e}")
