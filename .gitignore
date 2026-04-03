@@ -19,6 +19,7 @@ __pycache__/
 data/chrome_profile/
 data/tmp_sync/
 data/logs/
+data/jobs.db
 *.lock
 
 # Environment / Private Keys (Git should not track these for safety)
