@@ -87,7 +87,15 @@ class LinkedInCookieScraper(BaseScraper):
 
             page = context.pages[0] if context.pages else await context.new_page()
 
-            # --- 4GB RAM Optimization: Block Images/Media ---
+            # --- COOKIE INJECTION ---
+            if config and "linkedin" in config and "li_at_cookie" in config["linkedin"]:
+                logger.info("🍪 Injecting fresh LI_AT cookie from dashboard wizard...")
+                await context.add_cookies([{
+                    "name": "li_at",
+                    "value": config["linkedin"]["li_at_cookie"],
+                    "domain": ".www.linkedin.com",
+                    "path": "/"
+                }])
             async def block_media(route):
                 if route.request.resource_type in ["image", "media", "font"]:
                     await route.abort()

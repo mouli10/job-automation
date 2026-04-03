@@ -54,6 +54,20 @@ curr_time = config["search"]["filters"].get("time_filter", "Last 24 hours")
 idx = time_options.index(curr_time) if curr_time in time_options else 0
 config["search"]["filters"]["time_filter"] = st.sidebar.selectbox("Global Date Posted", time_options, index=idx, key="global_time_filter")
 
+# ── COOKIE WIZARD ──
+st.sidebar.divider()
+st.sidebar.subheader("🗝️ Authentication")
+new_li_at = st.sidebar.text_input("Refresh LI_AT Cookie", value="", type="password", key="li_at_input", help="Paste your new li_at cookie here if vision shows a Sign In page.")
+if st.sidebar.button("Update Login Session"):
+    if new_li_at:
+        # Update both local and session state
+        config["linkedin"] = config.get("linkedin", {})
+        config["linkedin"]["li_at_cookie"] = new_li_at
+        save_state()
+        st.sidebar.success("Session Updated! Try 'Test Cloud Eyes' now.")
+    else:
+        st.sidebar.error("Please paste a cookie first.")
+
 # --- PAGE LOGIC ---
 
 if page == "Search & Filters":
@@ -187,6 +201,14 @@ elif page == "Manual Run Control":
                                 user_data_dir=str(CHROME_PROFILE_DIR),
                                 headless=True
                             )
+                            # Inject cookie for test too
+                            if config and "linkedin" in config and "li_at_cookie" in config["linkedin"]:
+                                await context.add_cookies([{
+                                    "name": "li_at",
+                                    "value": config["linkedin"]["li_at_cookie"],
+                                    "domain": ".www.linkedin.com",
+                                    "path": "/"
+                                }])
                             page = await context.new_page()
                             await page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded")
                             await capture_screenshot(page, "DIAGNOSTIC_SELFIE")
@@ -207,7 +229,7 @@ elif page == "Manual Run Control":
         shots = sorted(list(shot_dir.glob("*.png")), key=lambda x: x.stat().st_mtime, reverse=True)
         if shots:
             for shot_path in shots[:2]: 
-                st.image(str(shot_path), use_container_width=True, caption=shot_path.name)
+                st.image(str(shot_path), use_column_width=True, caption=shot_path.name)
         else:
             st.info("No vision evidence found yet.")
     else:
