@@ -11,6 +11,18 @@ from src.config_manager import ConfigManager
 # Load current config
 config = ConfigManager.load_config()
 
+# --- CLOUD SYNC AT STARTUP ---
+# If running in Streamlit Cloud, we want to start with the latest data
+if "Streamlit" in str(st.session_state): # Simple check for cloud context
+    try:
+        from src.storage import sync_db_from_drive
+        # Periodically sync if the file doesn't exist or is old
+        if not Path(BASE_DIR / "data/jobs.db").exists():
+            with st.spinner("☁️ Syncing initial database from Google Drive..."):
+                sync_db_from_drive()
+    except Exception as e:
+        pass
+
 st.set_page_config(page_title="AI Job Scraper Admin", layout="wide", page_icon="🤖")
 
 st.title("🤖 AI Job Pipeline Admin")
@@ -25,6 +37,7 @@ page = st.sidebar.radio("Navigation", [
     "Search & Filters",
     "Limits & Scheduler",
     "Blacklists & Priorities",
+    "Jobs Database",
     "AI Document Optimization",
     "Application Assistant",
     "Weekly Market Trends",
@@ -142,6 +155,64 @@ elif page == "Blacklists & Priorities":
         config["optional_filters"]["priority_keywords"] = [k.strip() for k in priority_keywords.split("\n") if k.strip()]
 
     st.button("Save Changes", on_click=save_state, key="save_lists")
+
+elif page == "Jobs Database":
+    st.header("📂 Jobs Database")
+    st.markdown("View and filter the jobs currently stored in your persistent cloud database.")
+    
+    import pandas as pd
+    import sqlite3
+    
+    db_path = BASE_DIR / "data/jobs.db"
+    if not db_path.exists():
+        st.warning("No database found. Run the pipeline or Sync from Drive first.")
+    else:
+        try:
+            conn = sqlite3.connect(db_path)
+            # Fetch latest jobs
+            df = pd.read_sql_query("SELECT * FROM jobs ORDER BY date_scraped DESC", conn)
+            conn.close()
+            
+            if df.empty:
+                st.info("Database is empty. No jobs found yet.")
+            else:
+                st.write(f"Showing **{len(df)}** jobs.")
+                
+                # Filters
+                col1, col2 = st.columns(2)
+                with col1:
+                    search_query = st.text_input("Search Jobs (Company, Title, or URL)", "")
+                with col2:
+                    min_score = st.slider("Min ATS Score", 0.0, 10.0, 0.0)
+                
+                if search_query:
+                    df = df[df['company'].str.contains(search_query, case=False, na=False) | 
+                            df['title'].str.contains(search_query, case=False, na=False) |
+                            df['job_url'].str.contains(search_query, case=False, na=False)]
+                
+                df = df[df['ats_score'] >= min_score]
+                
+                # Display DataFrame
+                st.dataframe(
+                    df[['title', 'company', 'location', 'ats_score', 'date_scraped', 'job_url']],
+                    use_container_width=True,
+                    column_config={
+                        "job_url": st.column_config.LinkColumn("Job Link")
+                    }
+                )
+                
+                st.write("---")
+                st.subheader("Selection Details")
+                selected_job = st.selectbox("Select a job to view full AI analysis", df['title'] + " @ " + df['company'])
+                if selected_job:
+                    job_row = df[df['title'] + " @ " + df['company'] == selected_job].iloc[0]
+                    st.write(f"**ATS Analysis Score:** {job_row['ats_score']}/10")
+                    st.write(f"**Why Good Fit:** {job_row['match_reason']}")
+                    with st.expander("Show Full Job Description"):
+                        st.write(job_row['description'])
+                        
+        except Exception as e:
+            st.error(f"Error loading database: {e}")
 elif page == "AI Document Optimization":
     st.header("AI Document Optimization")
     st.markdown("Safely inject customized keywords inline into your resumed `.docx` files without breaking original XML formatting limits.")
@@ -277,7 +348,37 @@ elif page == "Weekly Market Trends":
     st.button("Save Settings", on_click=save_state, key="save_trends")
 
 elif page == "Manual Run Control":
-    st.header("🚀 Manual Pipeline Trigger")
+    st.header("🚀 Manual Control & Sync")
+    st.markdown("Trigger cloud synchronization or start the pipeline manually.")
+    
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.subheader("🔄 Database Sync")
+        st.write("Force the dashboard to pull the latest results from Google Drive.")
+        if st.button("Download from Drive Now", use_container_width=True):
+            try:
+                from src.storage import sync_db_from_drive
+                with st.spinner("Syncing..."):
+                    sync_db_from_drive()
+                st.success("✅ Database updated from Drive!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Sync failed: {e}")
+    
+    with col_b:
+        st.subheader("☁️ Database Backup")
+        st.write("Force an immediate upload of the current local state back to Drive.")
+        if st.button("Upload to Drive Now", use_container_width=True):
+            try:
+                from src.storage import sync_db_to_drive
+                with st.spinner("Syncing..."):
+                    sync_db_to_drive()
+                st.success("✅ Local database backed up to Drive!")
+            except Exception as e:
+                st.error(f"Backup failed: {e}")
+
+    st.write("---")
+    st.subheader("🔥 Manual Pipeline Trigger")
     st.markdown("Run the full job search pipeline **instantly**, bypassing all schedules.")
     
     st.warning("⚠️ Running the pipeline manually will launch a Chrome browser and consume Gemini API credits.")
