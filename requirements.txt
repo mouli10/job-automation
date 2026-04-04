@@ -188,3 +188,4 @@ openai
 psutil
 PyMuPDF
 python-dotenv
+openpyxl

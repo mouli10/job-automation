@@ -81,17 +81,8 @@ class ApplicationAssistant:
 
     def _get_resume_text(self, resume_path: str) -> str:
         try:
-            doc = docx.Document(resume_path)
-            # Use same robust extractor from optimizer minus len constraints to grab full context safely
-            lines = []
-            for p in doc.paragraphs:
-                lines.append(p.text.strip())
-            for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        for p in cell.paragraphs:
-                            lines.append(p.text.strip())
-            return "\n".join([line for line in lines if line])
+            from src.resume.parser import extract_text_from_file
+            return extract_text_from_file(resume_path)
         except Exception as e:
             logger.error(f"Failed extracting {resume_path} for App Assistant: {e}")
             return ""
