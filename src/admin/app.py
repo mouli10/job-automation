@@ -18,9 +18,9 @@ config = st.session_state.config
 if "Streamlit" in str(st.session_state): 
     try:
         from src.storage import sync_db_from_drive
-        if not Path(BASE_DIR / "data/jobs.db").exists():
-            with st.spinner("☁️ Syncing initial database from Google Drive..."):
-                sync_db_from_drive()
+        # Force a sync at startup to ensure we aren't using an empty Github placeholder
+        with st.spinner("☁️ Syncing latest database from Google Drive..."):
+            sync_db_from_drive()
     except Exception:
         pass
 
