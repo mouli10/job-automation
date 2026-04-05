@@ -55,6 +55,21 @@ curr_time = config["search"]["filters"].get("time_filter", "Last 24 hours")
 idx = time_options.index(curr_time) if curr_time in time_options else 0
 config["search"]["filters"]["time_filter"] = st.sidebar.selectbox("Global Date Posted", time_options, index=idx, key="global_time_filter")
 
+# ── ENGINE SELECTOR ──
+st.sidebar.divider()
+st.sidebar.subheader("🚀 Scraper Engine")
+engines = ["Playwright (Local/Free)", "Apify (Cloud/Reliable)"]
+curr_engine = config.get("scraper_engine", "Playwright").split(" ")[0]
+e_idx = 0 if "Playwright" in curr_engine else 1
+selected_engine = st.sidebar.selectbox("Active Engine", engines, index=e_idx)
+config["scraper_engine"] = selected_engine.split(" ")[0]
+
+if "Apify" in selected_engine:
+    new_token = st.sidebar.text_input("Apify API Token", value=config.get("apify_api_token", ""), type="password")
+    if new_token != config.get("apify_api_token", ""):
+        config["apify_api_token"] = new_token
+        save_state()
+
 # ── COOKIE WIZARD ──
 st.sidebar.divider()
 st.sidebar.subheader("🗝️ Authentication")

@@ -46,9 +46,18 @@ def build_li_filters(filters_config: dict) -> str:
 
 
 def build_combined_query(roles: List[str]) -> str:
-    """Builds a single LinkedIn Boolean OR query from all roles."""
+    """Builds a single LinkedIn Boolean OR query from all roles with NOT filters for blacklisted companies."""
     combined = " OR ".join(f'"{role}"' for role in roles)
-    logger.info(f"Combined search query: {combined[:120]}...")
+    
+    # ── ZERO-WASTE SPAM SHIELD 🛡️ ──
+    # Append NOT filters for blacklisted companies to save credits/time
+    blacklist_companies = admin_config.get("blacklist", {}).get("companies", [])
+    if blacklist_companies:
+        # We cap at 5 to avoid triggering LinkedIn's "Query too long" error
+        not_filters = " ".join([f'NOT "{c}"' for c in blacklist_companies[:5]])
+        combined = f"({combined}) {not_filters}"
+        
+    logger.info(f"Combined query: {combined[:150]}...")
     return quote_plus(combined)
 
 

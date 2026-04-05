@@ -189,3 +189,4 @@ psutil
 PyMuPDF
 python-dotenv
 openpyxl
+apify-client
