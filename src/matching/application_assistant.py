@@ -100,6 +100,10 @@ class ApplicationAssistant:
         if not resume_text:
             return result
 
+        if not job_obj.description or len(job_obj.description.strip()) < 100:
+            result["why_fit"] = "ERROR: Full Job Description not found. Cannot analyze fit."
+            return result
+
         job_desc_capped = (job_obj.description or "")[:3500]
         job_title = job_obj.title or "Position"
         

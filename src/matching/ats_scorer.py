@@ -73,9 +73,14 @@ def calculate_ats_score(job: Job, resume_text: str) -> dict:
         logger.warning(f"Empty resume text for job {job.id}. Skipping.")
         return {"ats_score": 0.0, "missing_keywords": [], "match_level": "Low"}
 
-    if not job.description or not job.description.strip():
-        logger.warning(f"Empty job description for job {job.id}. Skipping.")
-        return {"ats_score": 0.0, "missing_keywords": [], "match_level": "Low"}
+    if not job.description or len(job.description.strip()) < 100:
+        logger.warning(f"⚠️ Description too short for accurate AI scoring (Job ID: {job.id}). Skipping.")
+        return {
+            "ats_score": 0.0, 
+            "missing_keywords": [], 
+            "match_level": "Low", 
+            "review": "DESCRIPTION MISSING: Scraper failed to extract full text."
+        }
 
     if LLM_PROVIDER == "gemini" and GEMINI_API_KEY:
         result = _call_gemini_score(job.description, resume_text)
