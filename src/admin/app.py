@@ -62,7 +62,12 @@ engines = ["Playwright (Local/Free)", "Apify (Cloud/Reliable)"]
 curr_engine = config.get("scraper_engine", "Playwright").split(" ")[0]
 e_idx = 0 if "Playwright" in curr_engine else 1
 selected_engine = st.sidebar.selectbox("Active Engine", engines, index=e_idx)
-config["scraper_engine"] = selected_engine.split(" ")[0]
+engine_choice = selected_engine.split(" ")[0]
+
+if engine_choice != config.get("scraper_engine", ""):
+    config["scraper_engine"] = engine_choice
+    save_state()
+    st.rerun()
 
 if "Apify" in selected_engine:
     new_token = st.sidebar.text_input("Apify API Token", value=config.get("apify_api_token", ""), type="password")
