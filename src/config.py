@@ -2,19 +2,9 @@ import os
 import json
 import logging
 from pathlib import Path
-from dotenv import load_dotenv
+from src.shared_constants import BASE_DIR, DATA_DIR, DATABASE_URL, RESUMES_DIR, REPORTS_DIR, LOGS_DIR, CHROME_PROFILE_DIR, ORIGINAL_RESUMES_DIR, OPTIMIZED_RESUMES_DIR
 
-# --- BLOCK 1: PRIMITIVES & PATHS (NO IMPORTS ALLOWED) --- 🦾🏗️
-load_dotenv()
-BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BASE_DIR / "data"
-
-# Database (Prioritize Cloud over Local)
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR}/data/jobs.db").strip().strip('"\'')
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
-# API Keys & Secrets
+# --- BLOCK 1: CORE API KEYS --- 🦾🏗️
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").strip().strip('"\'')
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip().strip('"\'')
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip().strip('"\'')
@@ -24,21 +14,10 @@ APIFY_API_TOKEN = os.getenv("APIFY_API_TOKEN", "")
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip().strip('"\'')
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "").strip().strip('"\'')
 GDRIVE_FOLDER_ID = os.getenv("GDRIVE_FOLDER_ID", "1X4Q4P3we0SeZemb48zuoHkELbxIu6jPS").strip().strip('"\'')
-
-# --- BLOCK 2: DIRECTORIES & HANDOFFS --- 📂🏗️
-RESUMES_DIR = DATA_DIR / "resumes"
-REPORTS_DIR = DATA_DIR / "reports"
-LOGS_DIR = DATA_DIR / "logs"
-CHROME_PROFILE_DIR = DATA_DIR / "chrome_profile"
-ORIGINAL_RESUMES_DIR = RESUMES_DIR / "original"
-OPTIMIZED_RESUMES_DIR = RESUMES_DIR / "optimized"
 GDRIVE_CREDENTIALS_PATH = str(BASE_DIR / "credentials.json")
 
-for d in [DATA_DIR, RESUMES_DIR, ORIGINAL_RESUMES_DIR, OPTIMIZED_RESUMES_DIR, REPORTS_DIR, LOGS_DIR, CHROME_PROFILE_DIR]:
-    d.mkdir(parents=True, exist_ok=True)
-
-# --- BLOCK 3: DYNAMIC CONFIG (AFTER PATHS ARE READY) --- 🧠💾
-# This is where we break the circular import by importing ConfigManager LATE
+# --- BLOCK 2: DYNAMIC CONFIG --- 🧠💾
+# We can now safely import ConfigManager because database.py no longer looks at src.config
 from src.config_manager import ConfigManager
 admin_config = ConfigManager.load_config()
 
