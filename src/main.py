@@ -331,6 +331,14 @@ def run_pipeline(config_override: dict = None):
         logger.info("=== ✅ Pipeline Completed Successfully ===")
         logger.info("=" * 60)
 
+        # FINAL SYNC: Backup the database to Google Drive 🦾🛰️
+        try:
+            from src.storage import sync_db_to_drive
+            sync_db_to_drive()
+            logger.info("✅ Database successfully synced to Google Drive.")
+        except Exception as e:
+            logger.error(f"⚠️ Final sync to Google Drive failed: {e}")
+
     except Exception as e:
         logger.error(f"Pipeline failed: {e}", exc_info=True)
         if 'db' in locals(): db.rollback()
