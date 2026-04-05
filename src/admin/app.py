@@ -223,11 +223,17 @@ elif page == "Manual Run Control":
                         sync_screenshots_to_drive()
                         st.success("📸 Check Drive!")
                     except Exception as e: st.error(f"Failed: {e}")
-    with col_d:
         if st.button("MIGRATE TO CLOUD 🛰️", type="primary", use_container_width=True):
             with st.spinner("🚀 Porting to Supabase..."):
                 try:
+                    # --- NUCLEAR CACHE BUSTER --- 🦾🔄
+                    import sys
+                    for k in list(sys.modules.keys()):
+                        if k.startswith("src.") or k == "migrate_now":
+                            del sys.modules[k]
+                    
                     import migrate_now
+                    importlib.reload(migrate_now)  # Extra safety 🤝
                     migrate_now.migrate()
                     st.success("✅ MIGRATION SUCCESSFUL! The cloud brain is live.")
                     # Force a refresh to load cloud settings
