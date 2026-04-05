@@ -7,9 +7,13 @@ from src.config import DATA_DIR
 if DATABASE_URL.startswith("sqlite"):
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-engine = create_engine(
-    DATABASE_URL, connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-)
+# Engine Creation
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    # Optimized for Cloud Postgres
+    engine = create_engine(DATABASE_URL, pool_size=10, max_overflow=20)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

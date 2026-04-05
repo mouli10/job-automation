@@ -50,3 +50,10 @@ class Report(Base):
     report_date = Column(DateTime, default=datetime.utcnow)
     filepath = Column(String)
     jobs_processed = Column(Integer)
+
+class AppSetting(Base):
+    __tablename__ = "app_settings"
+    
+    key = Column(String, primary_key=True, index=True)  # e.g., 'search_roles', 'time_filter'
+    value = Column(Text)                                # JSON serialized string
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

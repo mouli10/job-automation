@@ -22,8 +22,13 @@ for env_key, filename in [("GDRIVE_CREDENTIALS_JSON", "credentials.json"),
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Database
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR}/data/jobs.db")
+# Database (Prioritize Cloud over Local)
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR}/data/jobs.db").strip().strip('"\'')
+
+# PostgreSQL compatibility fix
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 DB_RETENTION_DAYS = int(os.getenv("DB_RETENTION_DAYS", 60))
 
 # LLM
@@ -48,6 +53,10 @@ SEARCH_LOCATIONS = admin_config["search"]["locations"]
 SCRAPER_ENGINE = os.getenv("SCRAPER_ENGINE", "linkedin_cookie").strip().strip('"\'')
 LINKEDIN_LI_AT_COOKIE = os.getenv("LINKEDIN_LI_AT_COOKIE", "").strip().strip('"\'')
 APIFY_API_TOKEN = os.getenv("APIFY_API_TOKEN", "")
+
+# Supabase REST API (For Settings Persistence)
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip().strip('"\'')
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "").strip().strip('"\'')
 
 # Scraping Limits
 SCRAPER_MIN_DELAY = int(os.getenv("SCRAPER_MIN_DELAY", 3))
