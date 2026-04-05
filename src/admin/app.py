@@ -159,7 +159,7 @@ elif page == "Jobs Database":
 elif page == "Manual Run Control":
     st.header("🚀 Manual Control & Sync")
     
-    col_a, col_b, col_c = st.columns(3)
+    col_a, col_b, col_c, col_d = st.columns(4)
     with col_a:
         if st.button("Download Drive ⬇️", use_container_width=True):
             from src.storage import sync_db_from_drive
@@ -197,6 +197,44 @@ elif page == "Manual Run Control":
                     except Exception as e: st.error(f"Failed: {e}")
         with sub2:
             if st.button("🧪 Search Selfie", use_container_width=True):
+                with st.spinner("Visiting Search Page..."):
+                    try:
+                        import subprocess, asyncio
+                        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=False)
+                        from src.scraper.vision import capture_screenshot
+                        from src.storage import sync_screenshots_to_drive
+                        from src.scraper.linkedin import build_combined_query, build_li_filters
+                        from playwright.async_api import async_playwright
+                        from src.config import CHROME_PROFILE_DIR
+                        async def run_search_test():
+                            async with async_playwright() as p:
+                                context = await p.chromium.launch_persistent_context(user_data_dir=str(CHROME_PROFILE_DIR), headless=True)
+                                if config and "linkedin" in config and "li_at_cookie" in config["linkedin"]:
+                                    await context.add_cookies([{"name": "li_at", "value": config["linkedin"]["li_at_cookie"], "domain": ".www.linkedin.com", "path": "/"}])
+                                page = await context.new_page()
+                                q = build_combined_query(config["search"]["roles"])
+                                f = build_li_filters(config["search"]["filters"])
+                                loc = config["search"]["locations"][0] if config["search"]["locations"] else "United States"
+                                url = f"https://www.linkedin.com/jobs/search/?keywords={q}&location={loc}&{f}"
+                                await page.goto(url, wait_until="domcontentloaded")
+                                await capture_screenshot(page, "DIAGNOSTIC_SEARCH_SELFIE")
+                                await context.close()
+                        asyncio.run(run_search_test())
+                        sync_screenshots_to_drive()
+                        st.success("📸 Check Drive!")
+                    except Exception as e: st.error(f"Failed: {e}")
+    with col_d:
+        if st.button("MIGRATE TO CLOUD 🛰️", type="primary", use_container_width=True):
+            with st.spinner("🚀 Porting to Supabase..."):
+                try:
+                    import migrate_now
+                    migrate_now.migrate()
+                    st.success("✅ MIGRATION SUCCESSFUL! The cloud brain is live.")
+                    # Force a refresh to load cloud settings
+                    st.session_state.config = ConfigManager.load_config()
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Migration Failed: {e}")
                 with st.spinner("Visiting Search Page..."):
                     try:
                         import subprocess, asyncio
