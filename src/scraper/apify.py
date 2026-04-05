@@ -3,6 +3,7 @@ from src.scraper.base import BaseScraper
 import logging
 from apify_client import ApifyClient
 from src.config import admin_config
+from urllib.parse import quote_plus
 
 logger = logging.getLogger(__name__)
 
@@ -27,26 +28,25 @@ class ApifyScraper(BaseScraper):
         jobs = []
         
         # Prepare search logic (Zero-Waste Spam Shield)
+        from src.scraper.linkedin import build_li_filters, build_combined_query
+        
         # We search one role at a time to keep Apify results high-quality
         for location in locations:
             for role in roles:
                 try:
-                    # Construct search query with NOT filters (Spam Shield 🛡️)
-                    blacklist_companies = conf.get("blacklist", {}).get("companies", [])
-                    query = f'"{role}"'
-                    if blacklist_companies:
-                        not_string = " ".join([f'NOT "{c}"' for c in blacklist_companies[:5]]) # Cap to 5 to avoid query too long
-                        query = f'({query}) {not_string}'
+                    # Construct search URL (Universal Translator 🦾)
+                    # We use the existing engine to build the query and filters
+                    query = build_combined_query([role])
+                    filters = build_li_filters(conf.get("search", {}).get("filters", {}))
                     
-                    logger.info(f"   [Apify] Searching: {query} in {location}")
+                    full_url = f"https://www.linkedin.com/jobs/search/?keywords={query}&location={quote_plus(location)}&{filters}"
+                    
+                    logger.info(f"   [Apify] Searching via URL: {full_url[:120]}...")
                     
                     # Call Apify Actor: curious_coder/linkedin-jobs-scraper
-                    # This is the most reliable actor for $5/mo free credit tier.
                     run_input = {
-                        "searchQueries": [query],
-                        "location": location,
-                        "maxItems": conf.get("limits", {}).get("scrape_limit", 50),
-                        "publishedAt": "past-week",
+                        "urls": [full_url],
+                        "count": conf.get("limits", {}).get("scrape_limit", 50),
                         "proxyConfiguration": {"useApifyProxy": True}
                     }
                     
