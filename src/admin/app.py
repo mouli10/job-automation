@@ -113,6 +113,30 @@ if page == "Search & Filters":
         config["search"]["locations"] = [l.strip() for l in locations_text.split("\n") if l.strip()]
     st.button("Save Changes Forever", on_click=save_state, key="save_search")
 
+elif page == "Blacklists & Priorities":
+    st.header("🚫 Blacklists & Exclusion Filters")
+    st.info("Jobs from these companies or with these keywords will be hidden automatically by your 'Zero-Waste Shield'.")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Blacklisted Companies")
+        companies_text = st.text_area("Target companies to exclude (one per line)", 
+                                      "\n".join(config["blacklist"]["companies"]), height=250)
+        config["blacklist"]["companies"] = [c.strip() for c in companies_text.split("\n") if c.strip()]
+        
+    with col2:
+        st.subheader("Blacklisted Keywords")
+        keywords_text = st.text_area("Avoid jobs with these words in title (one per line)", 
+                                     "\n".join(config["blacklist"]["keywords"]), height=110)
+        config["blacklist"]["keywords"] = [k.strip() for k in keywords_text.split("\n") if k.strip()]
+        
+        st.subheader("Blacklisted Roles")
+        roles_text = st.text_area("Exclude these exact job titles (one per line)", 
+                                  "\n".join(config["blacklist"]["roles"]), height=110)
+        config["blacklist"]["roles"] = [r.strip() for r in roles_text.split("\n") if r.strip()]
+        
+    st.button("Save Blacklist Settings Forever", on_click=save_state, key="save_blacklist")
+
 elif page == "Jobs Database":
     st.header("📂 Jobs Database")
     import pandas as pd
