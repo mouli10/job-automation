@@ -81,81 +81,88 @@ def get_drive_service():
 
 def sync_original_resumes(resume_manager):
     """
-    Connects to Google Drive, locates the 'Original' folder inside config folder scope, 
-    downloads all .docx and .pdf files locally, and ingests them into the SQLite backend.
+    Two-phase resume sync:
+    Phase 1 (Always): Scan ORIGINAL_RESUMES_DIR and re-register any local files 
+                      with the correct current-machine path. This fixes stale 
+                      paths stored in cloud DB from a different machine.
+    Phase 2 (If Drive connected): Download any new/updated files from Google Drive.
     """
+
+    # ── PHASE 1: Re-register existing local files with correct path ──────────
+    valid_extensions = [".pdf", ".docx"]
+    local_files = [
+        f for f in ORIGINAL_RESUMES_DIR.iterdir()
+        if f.is_file() and f.suffix.lower() in valid_extensions
+    ]
+    if local_files:
+        logger.info(f"📁 Re-registering {len(local_files)} local resume(s) with current machine path...")
+        for local_file in local_files:
+            try:
+                resume_manager.ingest_resume(str(local_file))
+                logger.info(f"  ✅ Registered: {local_file.name} → {local_file}")
+            except Exception as e:
+                logger.warning(f"  ⚠️ Could not register {local_file.name}: {e}")
+
+    # ── PHASE 2: Sync from Google Drive ────────────────────────────────────
     service = get_drive_service()
     if not service or not GDRIVE_FOLDER_ID:
-        logger.warning("No Drive credentials active. Syncing original resumes from local directory only.")
+        logger.warning("No Drive credentials active. Using local files only.")
         return
-        
+
     logger.info("🔄 Initiating Google Drive Origin Sync...")
     try:
         from googleapiclient.http import MediaIoBaseDownload
-        
-        # 1. Find the 'Original' Folder inside the User's main automation folder
+
+        # Find the 'Original' folder inside the user's main Drive folder
         query = f"'{GDRIVE_FOLDER_ID}' in parents and name='Original' and mimeType='application/vnd.google-apps.folder' and trashed=false"
         results = service.files().list(q=query, fields="files(id, name)").execute()
         folders = results.get('files', [])
-        
+
         if not folders:
-            logger.warning(f"Could not find a folder named 'Original' inside Drive ID '{GDRIVE_FOLDER_ID}'. Sync aborted.")
+            logger.warning(f"No 'Original' folder found in Drive ID '{GDRIVE_FOLDER_ID}'. Skipping Drive sync.")
             return
-            
-        original_folder_id = list(folders)[0]['id']
-        
-        # 2. Get all Document files inside 'Original'
+
+        original_folder_id = folders[0]['id']
+
         doc_query = f"'{original_folder_id}' in parents and trashed=false"
         files_results = service.files().list(q=doc_query, fields="files(id, name, mimeType)").execute()
         files = files_results.get('files', [])
-        
+
         if not files:
-            logger.info("No files found strictly in Drive 'Original' folder.")
+            logger.info("No files found in Drive 'Original' folder.")
             return
-            
-        valid_extensions = [".docx", ".pdf"]
+
         synced_count = 0
-        
         for file in files:
             file_name = file.get("name")
             file_id = file.get("id")
             ext = Path(file_name).suffix.lower()
-            
+
             if ext not in valid_extensions:
                 continue
-                
-            from src.config import DATA_DIR
-            temp_cache = DATA_DIR / "tmp_sync"
-            temp_cache.mkdir(exist_ok=True)
-            local_dest = temp_cache / file_name
-            
-            # Download file byte stream
+
+            # Save directly to ORIGINAL_RESUMES_DIR (persistent, correct path stored in DB)
+            local_dest = ORIGINAL_RESUMES_DIR / file_name
+
             request = service.files().get_media(fileId=file_id)
             fh = io.BytesIO()
             downloader = MediaIoBaseDownload(fh, request)
-            
             done = False
-            while done is False:
+            while not done:
                 status, done = downloader.next_chunk()
-                
             fh.seek(0)
-            
-            # Save strictly to local Origin
+
             with open(local_dest, "wb") as f:
                 f.write(fh.read())
-                
-            # Automatically feed into ResumeManager DB
+
             resume_manager.ingest_resume(str(local_dest))
-            
-            # Clean up temp
-            local_dest.unlink(missing_ok=True)
-            
             synced_count += 1
-            
-        logger.info(f"✅ Successfully synced {synced_count} baseline resumes from Google Drive!")
-        
+
+        logger.info(f"✅ Drive Sync complete. {synced_count} resume(s) downloaded to {ORIGINAL_RESUMES_DIR}")
+
     except Exception as e:
         logger.error(f"Google Drive Sync Failed: {e}", exc_info=False)
+
 
 
 def upload_resume(filepath: str, filename: str) -> str:
