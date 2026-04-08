@@ -20,37 +20,63 @@ CONFIG_FOLDER_NAME = "config"
 SCREENSHOTS_FOLDER_NAME = "debug_screenshots"
 
 def get_drive_service():
-    """Authenticates and returns the Google Drive v3 service resource."""
-    if not GDRIVE_CREDENTIALS_PATH or not Path(GDRIVE_CREDENTIALS_PATH).exists():
+    """
+    Authenticates and returns the Google Drive v3 service resource.
+    Works in two modes:
+      1. Local (Mac): reads credentials.json + token.json from disk
+      2. Cloud (Streamlit Cloud): reads GDRIVE_CREDENTIALS_JSON + GDRIVE_TOKEN_JSON from env vars
+    """
+    import os, tempfile
+
+    creds_path = GDRIVE_CREDENTIALS_PATH
+    token_path = str(Path(GDRIVE_CREDENTIALS_PATH).parent / "token.json")
+
+    # ── CLOUD MODE: Write env var secrets to temp files ──────────────────────
+    creds_json_env = os.getenv("GDRIVE_CREDENTIALS_JSON", "").strip()
+    token_json_env = os.getenv("GDRIVE_TOKEN_JSON", "").strip()
+
+    if not Path(creds_path).exists() and creds_json_env:
+        try:
+            _tmp_dir = tempfile.mkdtemp()
+            creds_path = os.path.join(_tmp_dir, "credentials.json")
+            token_path = os.path.join(_tmp_dir, "token.json")
+            with open(creds_path, "w") as f:
+                f.write(creds_json_env)
+            if token_json_env:
+                with open(token_path, "w") as f:
+                    f.write(token_json_env)
+            logger.info("🌐 Cloud Mode: Loaded Drive credentials from environment secrets.")
+        except Exception as e:
+            logger.error(f"Failed to write Drive credentials from env vars: {e}")
+            return None
+
+    if not creds_path or not Path(creds_path).exists():
         return None
-        
+
     try:
         from googleapiclient.discovery import build
         from google.oauth2.credentials import Credentials
         from google_auth_oauthlib.flow import InstalledAppFlow
         from google.auth.transport.requests import Request
-        import os
 
-        # Full drive scope required to read manually dropped files in Original folder
         SCOPES = ["https://www.googleapis.com/auth/drive"]
-        token_path = Path(GDRIVE_CREDENTIALS_PATH).parent / "token.json"
         creds = None
 
-        if token_path.exists():
+        if Path(token_path).exists():
             creds = Credentials.from_authorized_user_file(str(token_path), SCOPES)
 
         if not creds or not creds.valid or not creds.has_scopes(SCOPES):
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
+                with open(token_path, "w") as token:
+                    token.write(creds.to_json())
             else:
-                flow = InstalledAppFlow.from_client_secrets_file(GDRIVE_CREDENTIALS_PATH, SCOPES)
-                creds = flow.run_local_server(port=0)
-            with open(token_path, "w") as token:
-                token.write(creds.to_json())
+                logger.error("Drive token is invalid and cannot be refreshed interactively in cloud mode.")
+                return None
 
         return build("drive", "v3", credentials=creds)
     except Exception as e:
-        logger.error(f"Google Drive Auth Failed. Is credentials.json valid? Error: {e}")
+        logger.error(f"Google Drive Auth Failed: {e}")
         return None
 
 def sync_original_resumes(resume_manager):
