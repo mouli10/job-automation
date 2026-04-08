@@ -41,6 +41,7 @@ page = st.sidebar.radio("Navigation", [
     "Application Assistant",
     "Prompt Management",
     "Weekly Market Trends",
+    "Resume Management",
     "Manual Run Control"
 ])
 
@@ -528,6 +529,79 @@ elif page == "Manual Run Control":
             src.main.run_pipeline(config_override=config)
             config["limits"]["scrape_limit"] = orig_limit
             st.success("Done!")
+
+elif page == "Resume Management":
+    st.header("📄 Resume Management")
+    st.markdown(
+        "Upload your resume files here. They are stored securely in **Supabase Storage** "
+        "and downloaded automatically each time the pipeline runs to score your resumes against jobs."
+    )
+    st.info("💡 Google Drive is used only for **outputting** optimized resumes and cover letters — not for storing your base resumes.")
+
+    # ── Upload Section ─────────────────────────────────────────────────────
+    st.subheader("⬆️ Upload New Resume")
+    uploaded_file = st.file_uploader(
+        "Choose your resume file",
+        type=["pdf", "docx"],
+        help="PDF is recommended. DOCX is also supported. Your file will be stored in Supabase Storage."
+    )
+
+    if uploaded_file:
+        col_prev, col_upload = st.columns([3, 1])
+        with col_prev:
+            st.caption(f"📎 {uploaded_file.name} ({round(uploaded_file.size / 1024, 1)} KB)")
+        with col_upload:
+            if st.button("☁️ Upload to Cloud", type="primary", use_container_width=True):
+                from src.storage import upload_resume_to_storage
+                from src.db.database import SessionLocal
+                from src.resume.manager import ResumeManager
+                with st.spinner(f"Uploading {uploaded_file.name} to Supabase Storage..."):
+                    try:
+                        file_bytes = uploaded_file.read()
+                        storage_path = upload_resume_to_storage(file_bytes, uploaded_file.name)
+                        db_session = SessionLocal()
+                        rm = ResumeManager(db_session)
+                        rm.ingest_resume_from_storage(uploaded_file.name, storage_path)
+                        db_session.close()
+                        st.success(f"✅ **{uploaded_file.name}** uploaded and registered for scoring!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Upload failed: {e}")
+
+    st.divider()
+
+    # ── Active Resumes Table ────────────────────────────────────────────────
+    st.subheader("📋 Active Resumes")
+    from src.db.database import SessionLocal
+    from src.db.models import Resume as ResumeModel
+    _db = SessionLocal()
+    active_resumes = _db.query(ResumeModel).filter(ResumeModel.is_active == True).all()
+
+    if not active_resumes:
+        st.warning("No resumes uploaded yet. Upload a PDF or DOCX above to get started.")
+    else:
+        for r in active_resumes:
+            c1, c2, c3 = st.columns([4, 3, 1])
+            with c1:
+                st.markdown(f"**📄 {r.filename}**")
+            with c2:
+                if str(r.filepath).startswith("supabase-storage://"):
+                    st.caption("☁️ Supabase Storage")
+                else:
+                    st.caption(f"💾 Local: `{r.filepath}`")
+            with c3:
+                if st.button("🗑️", key=f"del_resume_{r.id}", help="Remove this resume"):
+                    from src.storage import delete_resume_from_storage
+                    if str(r.filepath).startswith("supabase-storage://"):
+                        delete_resume_from_storage(r.filename)
+                    r.is_active = False
+                    _db.commit()
+                    st.success(f"Removed {r.filename}")
+                    st.rerun()
+    _db.close()
+
+    st.divider()
+    st.caption("ℹ️ Resumes marked as active here will be scored against every scraped job in the pipeline.")
 
 else:
     st.info("Select a page from the sidebar to continue.")

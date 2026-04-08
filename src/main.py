@@ -165,16 +165,15 @@ def run_pipeline(config_override: dict = None):
 
         # STEP 2: Load all active resumes
         resume_manager = ResumeManager(db)
-        
-        # Sync immediately with Google Drive Original folder
-        from src.storage import sync_original_resumes
-        sync_original_resumes(resume_manager)
-        
+
+        # Resumes are managed via the Admin Portal → Supabase Storage.
+        # The DB holds supabase-storage:// paths; parser downloads on demand.
         resumes = resume_manager.get_all_active_resumes()
 
         if not resumes:
-            logger.warning("No active resumes found. Add .docx files to data/resumes/original/")
+            logger.warning("No active resumes found. Upload resumes via Admin Portal → Resume Management.")
             return
+
 
         logger.info(f"📄 Loaded {len(resumes)} active resumes: {[r.filename for r in resumes]}")
 

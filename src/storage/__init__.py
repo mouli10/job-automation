@@ -332,3 +332,136 @@ def sync_screenshots_to_drive():
         logger.info(f"✅ 'Cloud Vision' synced successfully to {SCREENSHOTS_FOLDER_NAME} folder!")
     except Exception as e:
         logger.error(f"❌ Failed to sync cloud vision: {e}")
+
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ── Supabase Storage — Resume Management ─────────────────────────────────────
+# Resumes are uploaded via the Admin Portal and stored in Supabase Storage.
+# Google Drive is NOT used for resumes. Drive is only for cover letters and
+# optimized resumes.
+# ══════════════════════════════════════════════════════════════════════════════
+
+RESUME_BUCKET = "resumes"
+
+
+def _storage_headers() -> dict:
+    """Returns auth headers for Supabase Storage REST API calls."""
+    import os
+    key = os.getenv("SUPABASE_KEY", "")
+    return {
+        "Authorization": f"Bearer {key}",
+        "apikey": key,
+    }
+
+
+def ensure_resume_bucket() -> bool:
+    """Creates the 'resumes' bucket in Supabase Storage if it doesn't exist."""
+    import requests, os
+    url = os.getenv("SUPABASE_URL", "")
+    if not url:
+        logger.warning("SUPABASE_URL not set — cannot ensure bucket.")
+        return False
+    try:
+        r = requests.post(
+            f"{url}/storage/v1/bucket",
+            headers={**_storage_headers(), "Content-Type": "application/json"},
+            json={"id": RESUME_BUCKET, "name": RESUME_BUCKET, "public": False},
+            timeout=10,
+        )
+        if r.status_code in (200, 201):
+            logger.info(f"✅ Supabase Storage bucket '{RESUME_BUCKET}' created.")
+        elif r.status_code == 409:
+            logger.debug(f"Bucket '{RESUME_BUCKET}' already exists — OK.")
+        else:
+            logger.warning(f"Bucket creation response: {r.status_code} — {r.text}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to ensure resume bucket: {e}")
+        return False
+
+
+def upload_resume_to_storage(file_bytes: bytes, filename: str) -> str:
+    """
+    Uploads resume file bytes to Supabase Storage.
+    Returns a supabase-storage:// URI that the pipeline uses to download later.
+    """
+    import requests, os
+    url = os.getenv("SUPABASE_URL", "")
+    if not url:
+        raise RuntimeError("SUPABASE_URL not configured.")
+
+    ensure_resume_bucket()
+
+    r = requests.post(
+        f"{url}/storage/v1/object/{RESUME_BUCKET}/{filename}",
+        headers={
+            **_storage_headers(),
+            "Content-Type": "application/octet-stream",
+            "x-upsert": "true",
+        },
+        data=file_bytes,
+        timeout=60,
+    )
+    if r.status_code in (200, 201):
+        storage_path = f"supabase-storage://{RESUME_BUCKET}/{filename}"
+        logger.info(f"☁️ Resume uploaded to Supabase Storage: {filename}")
+        return storage_path
+    raise RuntimeError(f"Upload failed ({r.status_code}): {r.text}")
+
+
+def download_resume_from_storage(filename: str) -> bytes:
+    """Downloads a resume file from Supabase Storage. Returns raw bytes."""
+    import requests, os
+    url = os.getenv("SUPABASE_URL", "")
+    if not url:
+        raise RuntimeError("SUPABASE_URL not configured.")
+
+    r = requests.get(
+        f"{url}/storage/v1/object/{RESUME_BUCKET}/{filename}",
+        headers=_storage_headers(),
+        timeout=30,
+    )
+    if r.status_code == 200:
+        return r.content
+    raise RuntimeError(f"Download failed for '{filename}' ({r.status_code}): {r.text}")
+
+
+def list_resumes_in_storage() -> list:
+    """Lists all resume filenames in the Supabase Storage bucket."""
+    import requests, os
+    url = os.getenv("SUPABASE_URL", "")
+    if not url:
+        return []
+    try:
+        r = requests.post(
+            f"{url}/storage/v1/object/list/{RESUME_BUCKET}",
+            headers={**_storage_headers(), "Content-Type": "application/json"},
+            json={"prefix": "", "limit": 100},
+            timeout=10,
+        )
+        if r.status_code == 200:
+            return [f["name"] for f in r.json() if f.get("name")]
+        return []
+    except Exception as e:
+        logger.error(f"Failed to list storage resumes: {e}")
+        return []
+
+
+def delete_resume_from_storage(filename: str) -> bool:
+    """Deletes a resume file from Supabase Storage. Returns True on success."""
+    import requests, os
+    url = os.getenv("SUPABASE_URL", "")
+    if not url:
+        return False
+    try:
+        r = requests.delete(
+            f"{url}/storage/v1/object/{RESUME_BUCKET}/{filename}",
+            headers=_storage_headers(),
+            timeout=10,
+        )
+        return r.status_code in (200, 204)
+    except Exception as e:
+        logger.error(f"Failed to delete resume from storage: {e}")
+        return False
+
