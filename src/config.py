@@ -26,12 +26,12 @@ SEARCH_ROLES = admin_config["search"]["roles"]
 SEARCH_LOCATIONS = admin_config["search"]["locations"]
 SCRAPER_MAX_JOBS_DAY = admin_config["limits"]["scrape_limit"]
 MAX_REPORT_JOBS = admin_config["limits"]["email_limit"]
-DB_RETENTION_DAYS = int(os.getenv("DB_RETENTION_DAYS", 60))
+DB_RETENTION_DAYS = int(admin_config.get("limits", {}).get("db_retention_days", os.getenv("DB_RETENTION_DAYS", 60)))
 SCHEDULE_TIME = admin_config["scheduler"].get("run_times", ["07:00"])[0]
 SCRAPER_ENGINE = os.getenv("SCRAPER_ENGINE", "linkedin_cookie").strip().strip('"\'')
 LINKEDIN_LI_AT_COOKIE = os.getenv("LINKEDIN_LI_AT_COOKIE", "").strip().strip('"\'')
 
-# Scraping Delays (Constants)
-SCRAPER_MIN_DELAY = int(os.getenv("SCRAPER_MIN_DELAY", 3))
-SCRAPER_MAX_DELAY = int(os.getenv("SCRAPER_MAX_DELAY", 8))
-SCRAPER_MAX_PAGES = int(os.getenv("SCRAPER_MAX_PAGES", 5))
+# Scraping Safety Delays — read from admin portal first, .env as fallback
+SCRAPER_MIN_DELAY = int(admin_config.get("limits", {}).get("scraper_min_delay", os.getenv("SCRAPER_MIN_DELAY", 3)))
+SCRAPER_MAX_DELAY = int(admin_config.get("limits", {}).get("scraper_max_delay", os.getenv("SCRAPER_MAX_DELAY", 8)))
+SCRAPER_MAX_PAGES = int(admin_config.get("limits", {}).get("scraper_max_pages", os.getenv("SCRAPER_MAX_PAGES", 5)))

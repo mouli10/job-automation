@@ -243,9 +243,38 @@ def run_pipeline(config_override: dict = None):
 
         logger.info(f"\n✅ Scoring complete. {len(scored_jobs)} jobs scored.\n")
 
-        # STEP 4: Sort by ATS score, take top N
+        # STEP 4: Sort by ATS score, apply boosts/filters, take top N
         scored_jobs.sort(key=lambda x: x[0], reverse=True)
-        top_jobs = scored_jobs[:MAX_REPORT_JOBS]
+
+        # ── PRIORITY BOOST (from admin portal Blacklists & Priorities page) ──
+        opt_filters = admin_config.get("optional_filters", {})
+        if opt_filters.get("keyword_priority_boost", False):
+            priority_kws = [k.lower() for k in opt_filters.get("priority_keywords", [])]
+            priority_cos = [c.lower() for c in opt_filters.get("priority_companies", [])]
+            boosted = []
+            for (score, job, resume, result) in scored_jobs:
+                boost = 0.0
+                if priority_kws and any(kw in job.title.lower() for kw in priority_kws):
+                    boost += 2.0
+                    logger.info(f"  ⭐ Priority keyword boost +2.0 applied to: {job.title}")
+                if priority_cos and any(co in job.company.lower() for co in priority_cos):
+                    boost += 1.0
+                    logger.info(f"  ⭐ Priority company boost +1.0 applied to: {job.company}")
+                boosted.append((min(score + boost, 10.0), job, resume, result))
+            scored_jobs = sorted(boosted, key=lambda x: x[0], reverse=True)
+
+        # ── MIN ATS FILTER (from admin portal Blacklists & Priorities page) ──
+        min_ats = opt_filters.get("min_ats_score", 0.0)
+        if min_ats > 0:
+            before = len(scored_jobs)
+            scored_jobs = [(s, j, r, res) for (s, j, r, res) in scored_jobs if s >= min_ats]
+            filtered = before - len(scored_jobs)
+            if filtered:
+                logger.info(f"  🚫 Filtered out {filtered} jobs below min ATS score ({min_ats}).")
+
+        # Take top N using email_limit from admin portal (fallback to MAX_REPORT_JOBS from .env)
+        email_limit = admin_config.get("limits", {}).get("email_limit", MAX_REPORT_JOBS)
+        top_jobs = scored_jobs[:email_limit]
         logger.info(f"🏆 Top {len(top_jobs)} jobs selected (sorted by ATS score).\n")
 
 
@@ -355,12 +384,37 @@ if __name__ == "__main__":
     if args.run_now:
         run_pipeline()
     else:
-        logger.info(f"Starting Scheduler — daily run at {SCHEDULE_TIME}.")
-        scheduler = BlockingScheduler()
-        try:
-            hour, minute = map(int, SCHEDULE_TIME.split(":"))
-            scheduler.add_job(run_pipeline, CronTrigger(hour=hour, minute=minute), id="daily_pipeline")
-            logger.info(f"✅ Scheduler active. Next run at {SCHEDULE_TIME} every day.")
-            scheduler.start()
-        except (KeyboardInterrupt, SystemExit):
-            logger.info("Scheduler stopped.")
+        # ── READ SCHEDULER CONFIG FROM ADMIN PORTAL ──
+        from src.config_manager import ConfigManager as _CM
+        _sched_config = _CM.load_config().get("scheduler", {})
+        _enabled = _sched_config.get("enabled", True)
+
+        if not _enabled:
+            logger.info("⏸️  Scheduler is DISABLED in admin portal. Running pipeline once immediately.")
+            run_pipeline()
+        else:
+            _run_times = _sched_config.get("run_times", [SCHEDULE_TIME])
+            if not _run_times:
+                _run_times = [SCHEDULE_TIME]
+
+            _run_days = _sched_config.get("run_days",
+                ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"])
+            _day_map = {
+                "Monday":"mon","Tuesday":"tue","Wednesday":"wed",
+                "Thursday":"thu","Friday":"fri","Saturday":"sat","Sunday":"sun"
+            }
+            _days_str = ",".join([_day_map[d] for d in _run_days if d in _day_map]) or "mon-sun"
+
+            scheduler = BlockingScheduler()
+            try:
+                for _rt in _run_times:
+                    _h, _m = map(int, _rt.split(":"))
+                    scheduler.add_job(
+                        run_pipeline,
+                        CronTrigger(hour=_h, minute=_m, day_of_week=_days_str),
+                        id=f"daily_pipeline_{_rt}"
+                    )
+                logger.info(f"✅ Scheduler active. Runs at {_run_times} on {_run_days}.")
+                scheduler.start()
+            except (KeyboardInterrupt, SystemExit):
+                logger.info("Scheduler stopped.")

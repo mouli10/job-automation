@@ -33,15 +33,21 @@ def build_li_filters(filters_config: dict) -> str:
     if wt:
         params.append(f"f_WT={('%2C'.join(wt))}")
         
-    # Experience Level Filters
+    # Experience Level Filters (LinkedIn codes: 1=Internship, 2=Entry, 3=Associate, 4=Mid-Senior, 5=Director, 6=Executive)
     exp = []
-    if filters_config.get("entry_level"): exp.append("1")
-    if filters_config.get("associate"): exp.append("2")
-    if filters_config.get("mid_senior"): exp.append("4")
+    if filters_config.get("internship"):  exp.append("1")
+    if filters_config.get("entry_level"): exp.append("2")
+    if filters_config.get("associate"):   exp.append("3")
+    if filters_config.get("mid_senior"):  exp.append("4")
+    if filters_config.get("director"):    exp.append("5")
+    if filters_config.get("executive"):   exp.append("6")
     if exp:
         params.append(f"f_E={('%2C'.join(exp))}")
-        
-    params.append("sortBy=DD")
+
+    # Sort By (DD = Most Recent, R = Most Relevant)
+    sort_by = filters_config.get("sort_by", "Most Recent")
+    params.append("sortBy=R" if sort_by == "Most Relevant" else "sortBy=DD")
+
     return "&".join(params)
 
 
@@ -176,13 +182,17 @@ class LinkedInCookieScraper(BaseScraper):
             
             # Build Exp label
             exp_lvls = []
+            if filters.get('internship'):  exp_lvls.append("Internship")
             if filters.get('entry_level'): exp_lvls.append("Entry")
-            if filters.get('associate'): exp_lvls.append("Associate")
-            if filters.get('mid_senior'): exp_lvls.append("Mid-Senior")
+            if filters.get('associate'):   exp_lvls.append("Associate")
+            if filters.get('mid_senior'):  exp_lvls.append("Mid-Senior")
+            if filters.get('director'):    exp_lvls.append("Director")
+            if filters.get('executive'):   exp_lvls.append("Executive")
             exp_label = "+".join(exp_lvls) if exp_lvls else "All Levels"
+            sort_label = filters.get('sort_by', 'Most Recent')
             
             logger.info(f"🔍 Single combined query | {len(roles)} roles | {location}")
-            logger.info(f"   Filters: {time_label} | {loc_label} | {exp_label} | Sorted: Latest First")
+            logger.info(f"   Filters: {time_label} | {loc_label} | {exp_label} | Sort: {sort_label}")
             # --- END DYNAMIC LOGGING ---
 
             limit_hit = False

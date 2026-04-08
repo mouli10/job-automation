@@ -20,7 +20,15 @@ data/chrome_profile/
 data/tmp_sync/
 data/logs/
 data/jobs.db
+data/cover_letters/
+data/reports/
+data/screenshots/
+data/resumes/original/
+data/resumes/optimized/
 *.lock
+
+# Test / scratch scripts
+fetch_supabase.py
 
 # Environment / Private Keys (Git should not track these for safety)
 .env

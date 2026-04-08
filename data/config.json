@@ -17,19 +17,26 @@
             "entry_level": false,
             "associate": false,
             "mid_senior": false,
-            "time_filter": "Last 24 hours"
+            "time_filter": "Last 24 hours",
+            "sort_by": "Most Recent",
+            "internship": false,
+            "director": false,
+            "executive": false
         }
     },
     "limits": {
         "scrape_limit": 200,
-        "email_limit": 120
+        "email_limit": 120,
+        "db_retention_days": 60,
+        "scraper_min_delay": 3,
+        "scraper_max_delay": 8,
+        "scraper_max_pages": 5
     },
     "scheduler": {
         "enabled": true,
         "run_time": "07:00",
         "run_times": [
-            "07:00",
-            "19:00"
+            "07:00"
         ],
         "run_days": [
             "Monday",
@@ -65,5 +72,12 @@
         "active_prompt": "You are a strict and highly accurate ATS (Applicant Tracking System) expert.\n\nCarefully read the Job Description and Resume below. Evaluate how well the resume matches the job.\n\nYour scoring criteria:\n- Keyword match (skills, tools, technologies mentioned in JD vs resume): 40%\n- Experience level and relevance: 30%  \n- Education and certifications: 15%\n- Achievements and impact quantification: 15%\n\nBe strict and realistic. A perfect match (10.0) means the resume is virtually tailored for this role.\n\nJob Description:\n{job_desc}\n\nResume:\n{resume_text}\n\nReturn ONLY a valid JSON object with NO markdown, NO extra text:\n{{\"ats_score\": <float 0.0 to 10.0>, \"missing_keywords\": [\"keyword1\", \"keyword2\"], \"review\": \"A brief 2-3 sentence review of the resume highlighting strengths and gaps based on the criteria.\"}}",
         "default_prompt": "You are a strict and highly accurate ATS (Applicant Tracking System) expert.\n\nCarefully read the Job Description and Resume below. Evaluate how well the resume matches the job.\n\nYour scoring criteria:\n- Keyword match (skills, tools, technologies mentioned in JD vs resume): 40%\n- Experience level and relevance: 30%  \n- Education and certifications: 15%\n- Achievements and impact quantification: 15%\n\nBe strict and realistic. A perfect match (10.0) means the resume is virtually tailored for this role.\n\nJob Description:\n{job_desc}\n\nResume:\n{resume_text}\n\nReturn ONLY a valid JSON object with NO markdown, NO extra text:\n{{\"ats_score\": <float 0.0 to 10.0>, \"missing_keywords\": [\"keyword1\", \"keyword2\"], \"review\": \"A brief 2-3 sentence review of the resume highlighting strengths and gaps based on the criteria.\"}}",
         "prompt_history": []
+    },
+    "scraper_engine": "Apify",
+    "apify_api_token": "",
+    "weekly_trends": {
+        "enabled": true,
+        "analysis_window_days": 7,
+        "top_n_keywords": 20
     }
 }
