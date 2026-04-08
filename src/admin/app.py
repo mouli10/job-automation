@@ -8,13 +8,14 @@ import pandas as pd
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(BASE_DIR))
 
-# --- SAFE RELOADER --- 🦾🔄
+# --- SAFE RELOADER ─ clears ALL src.* modules so hot-reloads always use fresh code ---
 for k in list(sys.modules.keys()):
-    if k.startswith("src.config") or k == "src.shared_constants":
+    if k.startswith("src."):
         try:
             del sys.modules[k]
         except KeyError:
             pass
+
 
 from src.config_manager import ConfigManager
 from src.config import admin_config, DATABASE_URL
